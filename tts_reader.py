@@ -271,15 +271,34 @@ def chunk_text(text: str, chunk_size: int) -> List[str]:
 def main():
     """Main function to select file, parse arguments, load config, and start reading."""
 
+    load_dotenv()
+
     parser = argparse.ArgumentParser(
         description="A TTS script to read a text file, supporting online and offline engines.")
     parser.add_argument("--engine", type=str,
                         default=os.getenv("DEFAULT_ENGINE", "OFFLINE").upper(),
                         choices=["OFFLINE", "ONLINE", "G_CLOUD"],
-                        help="Select the TTS engine: OFFLINE, ONLINE (gTTS), or G_CLOUD (WaveNet/Studio). Default is from .env.")
+                        help="Select the TTS engine: OFFLINE, ONLINE (gTTS), or G_CLOUD (WaveNet/Studio).")
+
+    parser.add_argument("--rate", type=float,
+                        default=float(os.getenv("SPEAKING_RATE", 1.0)),
+                        help="The speaking rate (speed). 1.0 is normal.")
+    parser.add_argument("--chunk-size", type=int,
+                        default=int(os.getenv("CHUNK_SIZE", 3500)),
+                        help="The maximum number of characters per segment to be processed by the TTS engine.")
+
+    parser.add_argument("--wavenet-voice", type=str,
+                        default=os.getenv("WAVENET_VOICE"),
+                        help="The ID of the WaveNet/Studio voice to use (e.g., cs-CZ-Wavenet-A).")
+    parser.add_argument("--credentials", type=str,
+                        default=os.getenv("G_CLOUD_CREDENTIALS"),
+                        help="Path to the Google Cloud JSON key file.")
 
     args = parser.parse_args()
     engine_choice = args.engine
+
+    speaking_rate = args.rate
+    chunk_size = args.chunk_size
 
     root = tk.Tk()
     root.withdraw()
@@ -294,20 +313,20 @@ def main():
         print("File selection cancelled by the user. Exiting.")
         sys.exit(0)
 
-    try:
-        speaking_rate = float(os.getenv("SPEAKING_RATE", 1.0))
-        chunk_size = int(os.getenv("CHUNK_SIZE", 3500))
-    except ValueError:
-        print("ERROR: Invalid format for SPEAKING_RATE or CHUNK_SIZE in .env.")
-        sys.exit(1)
-
     tts_engine = None
     try:
-        if engine_choice == "OFFLINE": # this is shit because of windows :-) - its problem with SAPI
+        if engine_choice == "OFFLINE": # working not well, because windows are stupid and are not adding langs into SAPI5
             tts_engine = OfflineTTSEngine(speaking_rate)
         elif engine_choice == "ONLINE":
             tts_engine = OnlineTTSEngine(speaking_rate)
         elif engine_choice == "G_CLOUD":
+            if args.wavenet_voice:
+                os.environ["WAVENET_VOICE"] = args.wavenet_voice
+            if args.credentials:
+                os.environ["G_CLOUD_CREDENTIALS"] = args.credentials
+            if not os.getenv("WAVENET_VOICE") or not os.getenv("G_CLOUD_CREDENTIALS"):
+                raise ValueError("WAVENET_VOICE and G_CLOUD_CREDENTIALS must be set for G_CLOUD engine.")
+
             tts_engine = GoogleCloudTTSEngine(speaking_rate)
         else:
             raise ValueError(f"Unknown engine choice: {engine_choice}")
@@ -317,7 +336,6 @@ def main():
         print(f"Details: {e}")
         sys.exit(1)
 
-    # 6. Read and process text file
     print(f"\n--- Starting Reading (Engine: {engine_choice}) ---")
     print(f"File: {os.path.basename(file_path)}")
     print(f"Rate: {speaking_rate}")

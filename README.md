@@ -31,7 +31,7 @@ google-cloud-texttospeech
 pywin32  # Windows only
 ```
 
-Install dependencies with:
+Install dependencies with (optional):
 
 ```bash
 pip install -r requirements.txt
