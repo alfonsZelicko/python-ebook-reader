@@ -10,9 +10,6 @@ from typing import List
 
 
 # --- Dependency check and installation ---
-# TODO: mby change this approach to another - to check separately as in linux-clip-board.py
-# --- Dependency check and installation ---
-
 def install_dependencies():
     """Installs required dependencies from requirements.txt."""
     print("Required Python packages are missing. Installing dependencies now...")
