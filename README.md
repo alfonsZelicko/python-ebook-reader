@@ -120,6 +120,18 @@ Ensure that the service account corresponding to your key has the **Service Usag
 
 ---
 
+## Future Plans
+
+The main roadmap includes:
+
+- **AI-based Translation Pipeline:**  
+  Add an intermediate step that automatically translates the input text into Czech using an AI translation model with a properly designed prompt for book-style narration.
+
+- **Audio File Export:**  
+  Implement support for saving generated speech directly to the file system (e.g., MP3/WAV), enabling full audiobook generation instead of real-time playback only.
+
+---
+
 ## License
 
 MIT License
