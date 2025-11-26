@@ -62,6 +62,9 @@ WAVENET_VOICE="cs-CZ-Wavenet-B"
 LANGUAGE_CODE="cs-CZ"
 ```
 
+### Dynamic setup option:
+all this `.env` params are possible to overwrite with params:
+
 2. Ensure you have the Google Cloud credentials file if using `G_CLOUD` engine.
 
 ---
@@ -71,15 +74,23 @@ LANGUAGE_CODE="cs-CZ"
 Run the script with:
 
 ```bash
-python main.py [--engine ENGINE]
+python main.py [--install-deps --engine ENGINE --rate SPEAKING_RATE --chunk-size CHUNK_SIZE --wavenet-voice WAVENET_VOICE --credentials G_CLOUD_CREDENTIALS]
 ```
 
-* `--engine` (optional): Override the default engine from `.env`. Options: `OFFLINE`, `ONLINE`, `G_CLOUD`.
+All this params are optional and overriding the default `.env` values
+* `--engine` Options: `OFFLINE`, (DEFAULT) `ONLINE`, `G_CLOUD`.
+* `--rate` Options: (DEFAULT) `1.0` = normal speed; `<1.0` = slower; `>1.0` = faster
+* `--chunk-size` Options: (DEFAULT) `3500`
+* `--wavenet-voice` Options: (DEFAULT) `cs-CZ-Wavenet-B`
+* `--credentials` Options: `Path to the Google Cloud JSON key file.`
+
+This param is optional and if used - script will install its dependencies: you need to do it if you are lazy, and only 1st time :-)
+* `--install-deps`: it will try to install all necessary dependencies to run script properly (from `requirements.txt`)
 
 Example:
 
 ```bash
-python main.py --engine ONLINE
+python tts_reader.py --engine G_CLOUD --wavenet-voice cs-CZ-Wavenet-B
 ```
 
 A file picker will appear. Select a text file, and the script will read it aloud in chunks.

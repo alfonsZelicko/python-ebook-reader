@@ -11,27 +11,42 @@ from typing import List
 
 # --- Dependency check and installation ---
 # TODO: mby change this approach to another - to check separately as in linux-clip-board.py
+# --- Dependency check and installation ---
+
 def install_dependencies():
-    """Checks if required dependencies are installed and installs them from requirements.txt if needed."""
+    """Installs required dependencies from requirements.txt."""
+    print("Required Python packages are missing. Installing dependencies now...")
     try:
-        # Check if the core dependency 'dotenv' is present
+        # Attempt to install everything from requirements.txt
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+        print("Dependencies installed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"ERROR: Failed to install dependencies. Please run 'pip install -r requirements.txt' manually: {e}")
+        sys.exit(1)
+
+
+def check_and_run_dependency_install():
+    """Checks for the --install-deps argument and runs the installation if present."""
+
+    install_parser = argparse.ArgumentParser(add_help=False)
+    install_parser.add_argument("--install-deps", action="store_true",
+                                help="Installs dependencies from requirements.txt and exits.")
+
+    known_args, unknown_args = install_parser.parse_known_args()
+
+    if known_args.install_deps:
+        install_dependencies()
+        sys.exit(0)
+
+    try:
         import dotenv
     except ImportError:
-        print("Required Python packages are missing. Installing dependencies now...")
-        try:
-            # Attempt to install everything from requirements.txt
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
-            print("Dependencies installed successfully.")
-        except subprocess.CalledProcessError as e:
-            print(f"ERROR: Failed to install dependencies. Please run 'pip install -r requirements.txt' manually: {e}")
-            sys.exit(1)
-        # Re-import dotenv after installation to proceed
-        import dotenv
-
-install_dependencies()
-
+        print("FATAL ERROR: Core dependencies missing. Please run with '--install-deps' first.")
+        sys.exit(1)
 
 from dotenv import load_dotenv
+
+load_dotenv()
 import tqdm
 import pyttsx3
 import gtts
@@ -270,8 +285,6 @@ def chunk_text(text: str, chunk_size: int) -> List[str]:
 
 def main():
     """Main function to select file, parse arguments, load config, and start reading."""
-
-    load_dotenv()
 
     parser = argparse.ArgumentParser(
         description="A TTS script to read a text file, supporting online and offline engines.")
