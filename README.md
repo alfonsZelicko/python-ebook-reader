@@ -78,7 +78,7 @@ python main.py [--install-deps --engine ENGINE --rate SPEAKING_RATE --chunk-size
 ```
 
 All this params are optional and overriding the default `.env` values
-* `--engine` Options: `OFFLINE`, (DEFAULT) `ONLINE`, `G_CLOUD`.
+* `--engine` Options: `OFFLINE`, (DEFAULT) `ONLINE`, `G_CLOUD`, `COQUI`.
 * `--rate` Options: (DEFAULT) `1.0` = normal speed; `<1.0` = slower; `>1.0` = faster
 * `--chunk-size` Options: (DEFAULT) `3500`
 * `--wavenet-voice` Options: (DEFAULT) `cs-CZ-Wavenet-B`
