@@ -21,7 +21,6 @@ def install_dependencies():
         print(f"ERROR: Failed to install dependencies. Please run 'pip install -r requirements.txt' manually: {e}")
         sys.exit(1)
 
-
 def check_and_run_dependency_install():
     """Checks for the --install-deps argument and runs the installation if present."""
 
@@ -65,7 +64,7 @@ if platform.system() == "Windows":
 
 load_dotenv()
 
-# --- Engine Implementations ---
+# ENGINE IMPLEMENTATIONS ##
 
 class BaseTTSEngine:
     """Abstract base class for all TTS engines."""
@@ -73,7 +72,7 @@ class BaseTTSEngine:
     def __init__(self, speaking_rate: float):
         self.speaking_rate = speaking_rate
 
-    def read_text_chunk(self, text: str):
+    def generate_audio_chunk(self, text: str):
         """Reads a single chunk of text."""
         raise NotImplementedError
 
@@ -145,8 +144,8 @@ class OfflineTTSEngine(BaseTTSEngine):
         else:
             print("Warning: Czech voice not found or configured. Using default system voice.")
 
-    def read_text_chunk(self, text: str):
-        """Reads the chunk using the initialized backend."""
+    def generate_audio_chunk(self, text: str):
+        """Reads the chunk using the initialized backend. in OFFLINE mod we will only read."""
         if hasattr(self, 'speaker'):
             self.speaker.Speak(text)
         elif hasattr(self, 'engine'):
@@ -162,7 +161,7 @@ class OnlineTTSEngine(BaseTTSEngine):
         super().__init__(speaking_rate)
         print("Initializing ONLINE engine (gTTS)...")
 
-    def read_text_chunk(self, text: str):
+    def generate_audio_chunk(self, text: str):
         """Generates MP3 and plays it using pydub/simpleaudio."""
         try:
             tts = gtts.gTTS(text, lang='cs')
@@ -175,16 +174,19 @@ class OnlineTTSEngine(BaseTTSEngine):
             if self.speaking_rate != 1.0:
                 audio = audio.speedup(playback_speed=self.speaking_rate)
 
-            play_obj = sa.play_buffer(
-                audio.raw_data,
-                num_channels=audio.channels,
-                bytes_per_sample=audio.sample_width,
-                sample_rate=audio.frame_rate
-            )
-            play_obj.wait_done()
+            # play_obj = sa.play_buffer(
+            #     audio.raw_data,
+            #     num_channels=audio.channels,
+            #     bytes_per_sample=audio.sample_width,
+            #     sample_rate=audio.frame_rate
+            # )
+            # play_obj.wait_done()
+
+            return audio
 
         except Exception as e:
             print(f"Error processing gTTS chunk: {e}")
+            raise
 
 class GoogleCloudTTSEngine(BaseTTSEngine):
     """Implementation using Google Cloud Text-to-Speech (WaveNet/Studio)."""
@@ -216,7 +218,7 @@ class GoogleCloudTTSEngine(BaseTTSEngine):
         )
         print(f"Using Google Cloud Voice: {voice_id} at rate {speaking_rate}")
 
-    def read_text_chunk(self, text: str):
+    def generate_audio_chunk(self, text: str):
         """Generates high-quality speech and plays it."""
         try:
             synthesis_input = texttospeech.SynthesisInput(text=text)
@@ -231,19 +233,121 @@ class GoogleCloudTTSEngine(BaseTTSEngine):
             mp3_fp.seek(0)
 
             audio = AudioSegment.from_file(mp3_fp, format="mp3")
-            play_obj = sa.play_buffer(
-                audio.raw_data,
-                num_channels=audio.channels,
-                bytes_per_sample=audio.sample_width,
-                sample_rate=audio.frame_rate
-            )
-            play_obj.wait_done()
+            # play_obj = sa.play_buffer(
+            #     audio.raw_data,
+            #     num_channels=audio.channels,
+            #     bytes_per_sample=audio.sample_width,
+            #     sample_rate=audio.frame_rate
+            # )
+            # play_obj.wait_done()
+
+            return audio
 
         except Exception as e:
             print(f"Error processing Google Cloud TTS chunk: {e}")
+            raise
+
+# PROGRESS MANAGER ##
+
+import json
+from typing import Dict, Any
+
+class ProgressManager:
+    """Manages reading, writing, and deleting the .progress file for state restoration."""
+
+    def __init__(self, file_path: str, args: argparse.Namespace):
+        """Initializes manager paths and determines the output folder."""
+
+        # Příklad: /cesta/k/test.txt -> 'test'
+        base_name = os.path.splitext(os.path.basename(file_path))[0]
+        # Příklad: /cesta/k/test.txt -> /cesta/k/
+        file_dir = os.path.dirname(file_path) or '.'
+
+        # Výstupní složka: /cesta/k/test/
+        self.output_dir = os.path.join(file_dir, base_name)
+
+        # Progress soubor: /cesta/k/test/test.progress
+        self.progress_file = os.path.join(self.output_dir, f"{base_name}.progress")
+
+        self.current_args = vars(args)  # Uložíme aktuální argumenty jako slovník
+        self.state: Dict[str, Any] = {}  # Uložený stav
+
+    def load_state(self) -> bool:
+        """Attempts to load the progress state from disk."""
+        if os.path.exists(self.progress_file):
+            try:
+                with open(self.progress_file, 'r', encoding='utf-8') as f:
+                    self.state = json.load(f)
+
+                print(f"\n--- RESTORING STATE from {os.path.basename(self.progress_file)} ---")
+
+                # Přepíšeme aktuální parametry těmi uloženými
+                for key, value in self.state['parameters'].items():
+                    # Nechceme přepsat ty argumenty, které nejsou v CLI (např. 'current_mp3_index')
+                    if key in self.current_args:
+                        print(f"   [OVERRIDE] {key.upper()}: {self.current_args[key]} -> {value}")
+                        self.current_args[key] = value
+
+                print("-----------------------------------------------------")
+                return True
+
+            except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
+                print(f"Warning: Corrupted or unreadable progress file found. Starting fresh. ({e})")
+                self.delete_state()
+                return False
+
+        return False
+
+    def update_state(self, last_chunk_index: int, last_mp3_index: int):
+        """Saves the current progress state to disk."""
+
+        # 1. Zajistíme existenci složky
+        os.makedirs(self.output_dir, exist_ok=True)
+
+        # 2. Uložíme kompletní stav
+        self.state = {
+            # Uložíme parametry, pod kterými se generuje (pro obnovu)
+            'parameters': self.current_args,
+            # Index posledního CHUNKU, který byl úspěšně zařazen do MP3
+            'last_chunk_index': last_chunk_index,
+            # Index posledního MP3, který byl ÚSPĚŠNĚ UZAVŘEN (dokončen)
+            'last_mp3_index': last_mp3_index
+        }
+
+        try:
+            with open(self.progress_file, 'w', encoding='utf-8') as f:
+                json.dump(self.state, f, indent=4)
+        except Exception as e:
+            print(f"CRITICAL ERROR: Failed to save progress file: {e}")
+
+    def delete_state(self):
+        """Deletes the progress file upon 100% completion."""
+        if os.path.exists(self.progress_file):
+            os.remove(self.progress_file)
+            print(f"Progress file deleted: {os.path.basename(self.progress_file)}")
+
+    @property
+    def is_restored(self) -> bool:
+        return 'parameters' in self.state
+
+    # Funkce pro získání indexů
+    @property
+    def get_last_chunk_index(self) -> int:
+        return self.state.get('last_chunk_index', -1)
+
+    @property
+    def get_last_mp3_index(self) -> int:
+        return self.state.get('last_mp3_index', 0)
+
+    # Funkce pro získání názvu souboru pro další MP3
+    def get_next_mp3_filename(self, mp3_index: int) -> str:
+        base_name = os.path.splitext(os.path.basename(self.progress_file))[0]
+        # Formát: 01_test.mp3
+        return os.path.join(self.output_dir, f"{mp3_index:02d}_{base_name}.mp3")
+
 # ------------------------------------
 
-# --- Main Logic ---
+## UTILITIES ##
 
 def chunk_text(text: str, chunk_size: int) -> List[str]:
     """Splits text into chunks of maximum size, trying to split by paragraphs."""
@@ -279,24 +383,23 @@ def chunk_text(text: str, chunk_size: int) -> List[str]:
 
     return chunks
 
-
-def main():
-    """Main function to select file, parse arguments, load config, and start reading."""
-
+def parse_arguments():
+    """Parses command-line arguments and returns the populated args object."""
     parser = argparse.ArgumentParser(
         description="A TTS script to read a text file, supporting online and offline engines.")
+
+    parser.add_argument("--output-file", type=int, nargs='?', const=900, default=None,
+                        help="Activates audiobook export mode. Value is the max duration of each MP3 segment in seconds (default: 900).")
     parser.add_argument("--engine", type=str,
                         default=os.getenv("DEFAULT_ENGINE", "OFFLINE").upper(),
                         choices=["OFFLINE", "ONLINE", "G_CLOUD"],
                         help="Select the TTS engine: OFFLINE, ONLINE (gTTS), or G_CLOUD (WaveNet/Studio).")
-
     parser.add_argument("--rate", type=float,
                         default=float(os.getenv("SPEAKING_RATE", 1.0)),
                         help="The speaking rate (speed). 1.0 is normal.")
     parser.add_argument("--chunk-size", type=int,
                         default=int(os.getenv("CHUNK_SIZE", 3500)),
                         help="The maximum number of characters per segment to be processed by the TTS engine.")
-
     parser.add_argument("--wavenet-voice", type=str,
                         default=os.getenv("WAVENET_VOICE"),
                         help="The ID of the WaveNet/Studio voice to use (e.g., cs-CZ-Wavenet-A).")
@@ -304,14 +407,12 @@ def main():
                         default=os.getenv("G_CLOUD_CREDENTIALS"),
                         help="Path to the Google Cloud JSON key file.")
 
-    args = parser.parse_args()
-    engine_choice = args.engine
+    return parser.parse_args()
 
-    speaking_rate = args.rate
-    chunk_size = args.chunk_size
-
+def select_file():
+    """Opens a file dialog for user file selection."""
     root = tk.Tk()
-    root.withdraw()
+    root.withdraw()  # Hide the main window
 
     file_path = filedialog.askopenfilename(
         title="Select a text file to read",
@@ -323,21 +424,36 @@ def main():
         print("File selection cancelled by the user. Exiting.")
         sys.exit(0)
 
-    tts_engine = None
-    try:
-        if engine_choice == "OFFLINE": # working not well, because windows are stupid and are not adding langs into SAPI5
-            tts_engine = OfflineTTSEngine(speaking_rate)
-        elif engine_choice == "ONLINE":
-            tts_engine = OnlineTTSEngine(speaking_rate)
-        elif engine_choice == "G_CLOUD":
-            if args.wavenet_voice:
-                os.environ["WAVENET_VOICE"] = args.wavenet_voice
-            if args.credentials:
-                os.environ["G_CLOUD_CREDENTIALS"] = args.credentials
-            if not os.getenv("WAVENET_VOICE") or not os.getenv("G_CLOUD_CREDENTIALS"):
-                raise ValueError("WAVENET_VOICE and G_CLOUD_CREDENTIALS must be set for G_CLOUD engine.")
+    return file_path
 
-            tts_engine = GoogleCloudTTSEngine(speaking_rate)
+def initialize_tts_engine(args):
+    """Initializes and returns the appropriate TTS engine based on arguments."""
+
+    engine_choice = args.engine
+    speaking_rate = args.rate
+
+    try:
+        if engine_choice == "OFFLINE":
+            return OfflineTTSEngine(speaking_rate)
+
+        elif engine_choice == "ONLINE":
+            return OnlineTTSEngine(speaking_rate)
+
+        elif engine_choice == "G_CLOUD":
+            wavenet_voice = args.wavenet_voice
+            credentials = args.credentials
+            if wavenet_voice:
+                os.environ["WAVENET_VOICE"] = wavenet_voice
+            if credentials:
+                os.environ["G_CLOUD_CREDENTIALS"] = credentials
+
+            if not (wavenet_voice or os.getenv("WAVENET_VOICE")) or \
+                    not (credentials or os.getenv("G_CLOUD_CREDENTIALS")):
+                raise ValueError(
+                    "WAVENET_VOICE and G_CLOUD_CREDENTIALS must be set for G_CLOUD engine (either via CLI or environment).")
+
+            return GoogleCloudTTSEngine(speaking_rate)
+
         else:
             raise ValueError(f"Unknown engine choice: {engine_choice}")
 
@@ -346,21 +462,194 @@ def main():
         print(f"Details: {e}")
         sys.exit(1)
 
-    print(f"\n--- Starting Reading (Engine: {engine_choice}) ---")
-    print(f"File: {os.path.basename(file_path)}")
-    print(f"Rate: {speaking_rate}")
+def process_reading(file_path, engine, chunk_size):
+    """Handles file loading, text chunking, and the main reading loop."""
 
-    with open(file_path, 'r', encoding='utf-8') as f:
-        full_text = f.read()
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            full_text = f.read()
+    except Exception as e:
+        print(f"Error reading file {file_path}: {e}")
+        sys.exit(1)
 
     chunks = chunk_text(full_text, chunk_size)
     print(f"Total chunks to read: {len(chunks)}")
 
+    # We must ensure the engine supports playback if it's not OFFLINE (which handles playback internally)
+    is_offline_engine = isinstance(engine, OfflineTTSEngine)
+
     for i, chunk in enumerate(tqdm.tqdm(chunks, desc="Reading Progress")):
-        tts_engine.read_text_chunk(chunk)
+        if is_offline_engine:
+            # OFFLINE engine handles playback internally and doesn't return data
+            engine.read_text_chunk(chunk)
+        else:
+            # ONLINE/GCLOUD engine generates audio data
+            audio_data = engine.generate_audio_chunk(chunk)
+
+            # Explicitly play the returned audio data
+            play_obj = sa.play_buffer(
+                audio_data.raw_data,
+                num_channels=audio_data.channels,
+                bytes_per_sample=audio_data.sample_width,
+                sample_rate=audio_data.frame_rate
+            )
+            play_obj.wait_done()
 
     print("\n--- Reading Complete ---")
 
+def export_audiobook(file_path, tts_engine, args):
+    """
+    Handles file loading, chunking, audiobook segment generation,
+    and progress state management. This function is for silent export only.
+    """
+
+    # --- 1. INITIALIZE PROGRESS MANAGER AND LOAD STATE ---
+    manager = ProgressManager(file_path, args)
+    manager.load_state()
+
+    # Note: If state was loaded, manager.current_args now holds the restored parameters,
+    # and tts_engine should be re-initialized if its state (e.g., rate) relies on args.
+    # Since we re-initialize the manager after parsing, let's trust the manager logic
+    # and re-initialize the engine here to ensure consistency if rate was changed.
+    # We will skip re-initialization here for simplicity, assuming rate is handled inside engine init.
+
+    # --- 2. LOAD TEXT AND DETERMINE STARTING POINT ---
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            full_text = f.read()
+    except Exception as e:
+        print(f"Error reading source file {file_path}: {e}")
+        sys.exit(1)
+
+    all_chunks = chunk_text(full_text, args.chunk_size)
+    total_chunks = len(all_chunks)
+
+    # Determine where to start reading from based on progress file
+    start_chunk_index = manager.get_last_chunk_index + 1
+    current_mp3_index = manager.get_last_mp3_index + 1
+
+    # Check if all chunks were already processed
+    if start_chunk_index >= total_chunks:
+        print("INFO: All chunks have been processed. Starting cleanup.")
+        manager.delete_state()
+        return
+
+    print(f"Total chunks to read: {total_chunks}. Starting from chunk index {start_chunk_index}")
+
+    # --- 3. MAIN EXPORT LOOP ---
+
+    # Duration limit in milliseconds
+    max_duration_ms = manager.current_args['output_file'] * 1000
+
+    # Start accumulation from the first unprocessed chunk
+    chunks_to_process = all_chunks[start_chunk_index:]
+
+    current_segment_audio = AudioSegment.empty()
+    last_processed_chunk_index = start_chunk_index - 1
+
+    # We use tqdm only over the remaining chunks to process
+    for i, chunk in enumerate(tqdm.tqdm(chunks_to_process, desc="Export Progress")):
+
+        # Calculate the absolute index within the full text chunk list
+        absolute_chunk_index = start_chunk_index + i
+
+        try:
+            # Generate audio data (this is now silent)
+            new_audio_chunk = tts_engine.generate_audio_chunk(chunk)
+
+            # --- DECISION POINT: CHECK DURATION LIMIT ---
+
+            # Check if adding the new chunk would exceed the max duration
+            if (len(current_segment_audio) + len(new_audio_chunk) > max_duration_ms and
+                    len(current_segment_audio) > 0):
+                # 1. LIMIT EXCEEDED: Save the current accumulated segment (before adding the new one)
+                output_filename = manager.get_next_mp3_filename(current_mp3_index)
+
+                print(
+                    f"\n[SAVE] Saving segment {current_mp3_index} to {os.path.basename(output_filename)} (Duration: {len(current_segment_audio) / 1000:.2f}s)")
+
+                # Export the completed audio file
+                current_segment_audio.export(output_filename, format="mp3")
+
+                # 2. UPDATE PROGRESS FILE: Mark the last chunk included in this successfully saved segment
+                manager.update_state(
+                    last_chunk_index=last_processed_chunk_index,
+                    last_mp3_index=current_mp3_index
+                )
+
+                # 3. RESET FOR NEXT SEGMENT
+                current_mp3_index += 1
+                current_segment_audio = AudioSegment.empty()  # Start the new segment from empty
+
+            # Add the new audio chunk to the current segment
+            current_segment_audio += new_audio_chunk
+            last_processed_chunk_index = absolute_chunk_index
+
+        except Exception as e:
+            # If an error occurs (like API failure), the loop breaks, and
+            # the progress file is NOT updated, allowing safe restart.
+            print(f"\nFATAL ERROR during synthesis at chunk index {absolute_chunk_index}. Progress NOT SAVED.")
+            print(f"Details: {e}")
+            sys.exit(1)
+
+    # --- 4. FINAL CLEANUP AFTER LOOP ---
+
+    # Save any remaining audio segment (the last file)
+    if len(current_segment_audio) > 0:
+        output_filename = manager.get_next_mp3_filename(current_mp3_index)
+        print(
+            f"\n[SAVE] Saving final segment {current_mp3_index} to {os.path.basename(output_filename)} (Duration: {len(current_segment_audio) / 1000:.2f}s)")
+
+        current_segment_audio.export(output_filename, format="mp3")
+
+        # FINAL PROGRESS UPDATE: Mark the last chunk of the entire text as processed
+        manager.update_state(
+            last_chunk_index=total_chunks - 1,
+            last_mp3_index=current_mp3_index
+        )
+
+    print("\n--- Reading Complete: FULL AUDIOBOOK EXPORTED ---")
+
+    # Delete the progress file only upon 100% completion of the entire text
+    manager.delete_state()
+
+## MAIN FUNCTION ##
+
+def main():
+    """The main entry point, orchestrating the script's execution flow."""
+
+    # 1. PARSE ARGUMENTS
+    args = parse_arguments()
+
+    # --- OFFLINE engine reading on his own - cant save it as mp3 -> incompatible with --output-file ---
+    if args.output_file is not None and args.engine == "OFFLINE":
+        print("\nCRITICAL ERROR: OFFLINE engine is not compatible with audiobook export (--output-file).")
+        print("Please choose ONLINE, G_CLOUD, or remove the --output-file argument.")
+        sys.exit(1)
+    # ---------------------------------------------
+
+    # 2. FILE SELECTION
+    file_path = select_file()
+
+    # 3. ENGINE INITIALIZATION
+    tts_engine = initialize_tts_engine(args)
+
+    if args.output_file is not None:
+        # Režim EXPORTU
+        print(f"\n--- Starting Audiobook Export (Engine: {args.engine}) ---")
+        export_audiobook(file_path, tts_engine, args)
+    else:
+        # Režim ČTENÍ (Výchozí)
+        print(f"\n--- Starting Live Reading (Engine: {args.engine}) ---")
+        process_reading(file_path, tts_engine, args.chunk_size)
+
+    # 4. START PROCESSING
+    print(f"\n--- Starting Reading (Engine: {args.engine}) ---")
+    print(f"File: {os.path.basename(file_path)}")
+    print(f"Rate: {args.rate}")
+    print(f"Chunk Size: {args.chunk_size}")
+
+    process_reading(file_path, tts_engine, args.chunk_size)
 
 if __name__ == "__main__":
     main()
