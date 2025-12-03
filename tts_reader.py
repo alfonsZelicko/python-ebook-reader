@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from core.engines import initialize_tts_engine
 from core.processor import start_processing
 from utils.args_manager import parse_arguments, validate_pre_execution_actions
-from utils.file_manager import select_file
 
 # Load variables from .env file into environment variables
 load_dotenv()
