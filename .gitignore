@@ -134,16 +134,14 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
-.env
-.env.*
-.envrc
+# Virtual environments
 .venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+
+# Environment/config files
+.env
+.envrc
+
+# Sensitive files
 google-key.json
 test.txt
 
