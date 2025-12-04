@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from typing import Dict, Any
 import argparse
 
@@ -10,20 +11,26 @@ class ProgressManager:
     def __init__(self, file_path: str, args: argparse.Namespace):
         """Initializes manager paths and determines the output folder based on the input file."""
 
-        # Example: /path/to/test.txt -> 'test'
+        # 1. Determine paths
         base_name = os.path.splitext(os.path.basename(file_path))[0]
-        # Example: /path/to/test.txt -> /path/to/
         file_dir = os.path.dirname(file_path) or '.'
 
-        # Output folder: /path/to/test/
         self.output_dir = os.path.join(file_dir, base_name)
-
-        # Progress file: /path/to/test/test.progress
         self.progress_file = os.path.join(self.output_dir, f"{base_name}.progress")
 
         # Save current arguments as a dictionary (used as default state and to check keys)
         self.current_args = vars(args)
-        self.state: Dict[str, Any] = {}  # Stores loaded or current progress state
+        # Stores loaded or current progress state
+        self.state: Dict[str, Any] = {}
+
+        # 2. PERFORM CLEANUP IF REQUESTED (Destructive action)
+        if args.CLEAN_OUTPUT_DIRECTORY:
+            if os.path.exists(self.output_dir):
+                shutil.rmtree(self.output_dir)
+                print(f"[CLEAN] Deleted old output directory: {self.output_dir}")
+
+        # 3. ENSURE DIRECTORY EXISTS (Guaranteed prerequisite for use!!!)
+        os.makedirs(self.output_dir, exist_ok=True)
 
     def load_state(self) -> bool:
         """Attempts to load the progress state from disk and overrides current args if successful."""
@@ -34,7 +41,7 @@ class ProgressManager:
 
                 print(f"\n--- RESTORING STATE from {os.path.basename(self.progress_file)} ---")
 
-                # Override current CLI parameters with saved parameters (e.g., engine, rate, output-file duration)
+                # Override current CLI parameters with saved parameters (e.g., engine, rate, max-file-duration)
                 for key, value in self.state['parameters'].items():
                     # Only override parameters that were originally present in the CLI arguments
                     if key in self.current_args:
@@ -74,10 +81,13 @@ class ProgressManager:
             print(f"CRITICAL ERROR: Failed to save progress file: {e}")
 
     def delete_state(self):
-        """Deletes the progress file upon 100% completion."""
+        """Deletes the progress file (upon 100% completion.)"""
         if os.path.exists(self.progress_file):
             os.remove(self.progress_file)
             print(f"Progress file deleted: {os.path.basename(self.progress_file)}")
+
+    def get_output_directory(self) -> str:
+        return self.output_dir
 
     @property
     def is_restored(self) -> bool:
@@ -97,5 +107,5 @@ class ProgressManager:
     def get_next_mp3_filename(self, mp3_index: int) -> str:
         """Generates the filename for the next MP3 segment."""
         base_name = os.path.splitext(os.path.basename(self.progress_file))[0]
-        # Format: 01_test.mp3
+        # Format: {NN}_<input_file_name>.mp3
         return os.path.join(self.output_dir, f"{mp3_index:02d}_{base_name}.mp3")

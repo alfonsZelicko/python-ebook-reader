@@ -1,61 +1,40 @@
-# File: core/engines.py
-
-import platform
-import sys
 import os
 import io
 import argparse
 
-# Common external libraries
-import gtts
+import platform
+import sys
 import pyttsx3
+import gtts
 from pydub import AudioSegment
-
-# --- CONDITIONAL IMPORTS ---
 
 # 1. Google Cloud Text-to-Speech (G_CLOUD engine)
 try:
     from google.cloud import texttospeech
 except ImportError:
-    # If not installed, set to None to avoid crash on import.
     texttospeech = None
 
 # 2. Windows SAPI Integration (Offline engine on Windows)
 try:
-    # We must import win32com.client specifically
     import win32com.client
 except ImportError:
-    # If pywin32 is not installed, set to None.
     win32com = None
 
 
 class BaseTTSEngine:
-    """Abstract base class for all TTS engines."""
-
     def __init__(self, speaking_rate: float):
         self.speaking_rate = speaking_rate
-
     def generate_audio_chunk(self, text: str):
-        """
-        Synthesizes a single chunk of text.
-        In ONLINE/G_CLOUD modes, this returns an AudioSegment object.
-        In OFFLINE mode, this performs direct playback.
-        """
         raise NotImplementedError
 
 
 class OfflineTTSEngine(BaseTTSEngine):
-    """
-    Implementation using pywin32 on Windows or pyttsx3 fallback on other OS.
-    This engine ONLY supports playback and cannot return AudioSegment data for export.
-    """
 
     def __init__(self, speaking_rate: float, offline_voice_id: str):
         super().__init__(speaking_rate)
         self.is_windows = platform.system() == "Windows"
         self.offline_voice_id = offline_voice_id
 
-        # Check if pywin32 was successfully imported
         if self.is_windows and win32com and 'win32com.client' in sys.modules:
             self._init_win32_sapi()
         else:
@@ -65,12 +44,9 @@ class OfflineTTSEngine(BaseTTSEngine):
         """Initializes SAPI via pywin32 COM object."""
         print("Initializing OFFLINE engine (pywin32 SAPI)...")
         try:
-            # win32com is checked in __init__
             self.speaker = win32com.client.Dispatch("SAPI.SpVoice")
-            sapi_rate = int((self.speaking_rate - 1.0) * 10)
-            self.speaker.Rate = sapi_rate
+            self.speaker.Rate = int((self.speaking_rate - 1.0) * 10) # -10 = slow; 0 = normal; +10 = fast
 
-            # Use the voice ID passed from args
             target_voice_id = self.offline_voice_id.strip().strip('"')
             voices = self.speaker.GetVoices()
             voice_to_use = None
@@ -82,14 +58,7 @@ class OfflineTTSEngine(BaseTTSEngine):
                 self.speaker.Voice = voice_to_use
                 print(f"Using configured SAPI voice: {voice_to_use.GetDescription()}")
             else:
-                czech_voice = next((v for v in voices if
-                                    'czech' in v.GetDescription().lower() or 'cs-cz' in v.GetDescription().lower()),
-                                   None)
-                if czech_voice:
-                    self.speaker.Voice = czech_voice
-                    print(f"Using auto-detected SAPI voice: {czech_voice.GetDescription()}")
-                else:
-                    print("Warning: Czech voice not found or configured. Using default SAPI voice.")
+                print(f"Warning: Configured voice ID '{target_voice_id}' not found. Using default SAPI voice.")
 
         except Exception as e:
             print(f"Error initializing pywin32 SAPI, falling back to pyttsx3: {e}")
@@ -98,31 +67,41 @@ class OfflineTTSEngine(BaseTTSEngine):
     def _init_pyttsx3(self):
         """Initializes pyttsx3 for non-Windows or as a Windows fallback."""
         print("Initializing OFFLINE engine (pyttsx3)...")
-        self.engine = pyttsx3.init()
-        self.engine.setProperty('rate', int(175 * self.speaking_rate))
 
-        # Use the voice ID passed from args
-        target_voice_id = self.offline_voice_id.strip().strip('"')
-        voices = self.engine.getProperty('voices')
-        voice_to_use = None
+        try:
+            self.engine = pyttsx3.init()
+            self.engine.setProperty('rate', int(175 * self.speaking_rate)) # words per sec
 
-        if target_voice_id:
-            voice_to_use = next((v.id for v in voices if v.id == target_voice_id), None)
+            target_voice_id = self.offline_voice_id.strip().strip('"')
+            voices = self.engine.getProperty('voices')
+            voice_to_use = None
 
-        if not voice_to_use:
-            voice_to_use = next((v.id for v in voices if 'czech' in v.name.lower() or 'cs-cz' in v.id.lower()), None)
+            if target_voice_id:
+                # # It will try to find ID from configuration
+                voice_to_use = next((v.id for v in voices if v.id == target_voice_id), None)
 
-        if voice_to_use:
-            self.engine.setProperty('voice', voice_to_use)
-            voice_name = next((v.name for v in voices if v.id == voice_to_use), "Unknown Name")
-            print(f"Using configured pyttsx3 voice: {voice_name}")
-        else:
-            print("Warning: Czech voice not found or configured. Using default system voice.")
+            if voice_to_use:
+                self.engine.setProperty('voice', voice_to_use)
+                voice_name = next((v.name for v in voices if v.id == voice_to_use), "Unknown Name")
+                print(f"Using configured pyttsx3 voice: {voice_name}")
+            else:
+                print(f"Warning: Configured voice ID '{target_voice_id}' not found. Using default system voice.")
+
+        except Exception as e:
+            print(f"\nFATAL ERROR: Failed to initialize pyttsx3 engine. ({e})")
+
+            if platform.system() == "Linux":
+                print("HINT: On Linux, pyttsx3 requires a backend TTS engine (like eSpeak) to be installed.")
+                print("Try installing it: 'sudo apt install espeak' (Debian/Ubuntu) or similar for your distribution.")
+            elif platform.system() == "Darwin":  # macOS
+                print("HINT: On macOS, issues may occur if system voices are not configured or if espeak is missing.")
+
+            sys.exit(1)
 
     def generate_audio_chunk(self, text: str):
         """
         Performs direct playback for the OFFLINE engine.
-        Note: This does NOT return AudioSegment, hence incompatibility with --output-file.
+        Note: This does NOT return AudioSegment, hence incompatibility with --output-type === "FILE".
         """
         if hasattr(self, 'speaker'):
             self.speaker.Speak(text)

@@ -1,19 +1,20 @@
-# File: config_definitions.py
-
 # Define the structure for configuration keys.
 # Each entry requires:
 # - key: The internal Python/ENV variable name (uppercase, used for dest in argparse)
 # - default: The fallback value if neither CLI nor ENV is set.
 # - help_text: The description for both --help and the .env file comment.
 # - group: For structuring the .env file.
+# - choices (Optional): A list of valid strings to restrict CLI input (used by argparse).
 
 CONFIG_DEFS = [
     # --- CORE CONFIGURATION ---
     {
         "key": "TTS_ENGINE",
         "default": "ONLINE",
-        "help_text": "Sets the TTS engine to use. Choices: OFFLINE, ONLINE, G_CLOUD, COQUI.",
-        "group": "CORE CONFIGURATION & CONTROL"
+        "type": str,
+        "help_text": "Sets the TTS engine to use.",
+        "group": "CORE CONFIGURATION & CONTROL",
+        "choices": ["OFFLINE", "ONLINE", "G_CLOUD", "COQUI"]
     },
     {
         "key": "CHUNK_SIZE",
@@ -28,6 +29,30 @@ CONFIG_DEFS = [
         "type": float,
         "help_text": "The speaking rate (speed). 1.0 is normal. Use a float (e.g., 1.1).",
         "group": "CORE CONFIGURATION & CONTROL"
+    },
+
+    # --- NEW OUTPUT MODE CONFIGURATION ---
+    {
+        "key": "OUTPUT_TYPE",
+        "default": "AUDIO",
+        "type": str,
+        "help_text": "Sets the output mode. AUDIO (read aloud) or FILE (export to MP3).",
+        "group": "OUTPUT CONFIGURATION",
+        "choices": ["AUDIO", "FILE"]
+    },
+    {
+        "key": "MAX_FILE_DURATION",
+        "default": 600,
+        "type": int,
+        "help_text": "Maximum duration in seconds for a single exported MP3 segment (used only when OUTPUT_TYPE=FILE).",
+        "group": "OUTPUT CONFIGURATION"
+    },
+    {
+        "key": "CLEAN_OUTPUT_DIRECTORY",
+        "default": False,
+        "action": "store_true",
+        "help_text": "If provided, deletes the output directory and all contents (MP3s and .progress file) before starting.",
+        "group": "OUTPUT CONFIGURATION"
     },
 
     # --- OFFLINE ENGINE CONFIGURATION ---
@@ -50,13 +75,13 @@ CONFIG_DEFS = [
     {
         "key": "G_CLOUD_CREDENTIALS",
         "default": "./google-key.json",
-        "help_text": "Path to the Google Cloud service account JSON key file.",
+        "help_text": "Path to the Google Cloud service account JSON key file. \n Link on how to obtain: https://www.youtube.com/watch?v=dOlV_oD_dr8",
         "group": "GOOGLE CLOUD CONFIGURATION (G_CLOUD)"
     },
     {
         "key": "WAVENET_VOICE",
-        "default": "cs-CZ-Wavenet-B",
-        "help_text": "Name of the WaveNet/Studio voice to use.",
+        "default": "cs-CZ-Standard-B",
+        "help_text": "Name of the WaveNet/Studio voice to use. \nList of options here: https://docs.cloud.google.com/text-to-speech/docs/list-voices-and-types",
         "group": "GOOGLE CLOUD CONFIGURATION (G_CLOUD)"
     },
 
