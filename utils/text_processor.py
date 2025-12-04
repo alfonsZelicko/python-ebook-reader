@@ -1,10 +1,14 @@
 import re
 from typing import List
 
+# Pre-compile regular expressions for efficiency
+_whitespace_regex = re.compile(r'\s+')
+_sentence_split_regex = re.compile(r'(\.\.\.|[.!?;:\u2014\u2013])')
+
 
 def split_sentences(text: str) -> List[str]:
-    text = re.sub(r'\s+', ' ', text).strip()
-    parts = re.split(r'(\.\.\.|[.!?;:\u2014\u2013])', text)
+    text = _whitespace_regex.sub(' ', text).strip()
+    parts = _sentence_split_regex.split(text)
 
     sentences = []
     for i in range(0, len(parts), 2):

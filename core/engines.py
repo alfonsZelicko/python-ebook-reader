@@ -199,6 +199,71 @@ class GoogleCloudTTSEngine(BaseTTSEngine):
             raise  # Re-raise the exception to stop export process
 
 
+class CoquiTTSEngine(BaseTTSEngine):
+    """Implementation of offline TTS engine using Coqui TTS with lazy loading."""
+
+    def __init__(self, speaking_rate: float):
+        super().__init__(speaking_rate)
+
+        # LAZY LOADING: Import heavy dependencies only when this class is instantiated
+        try:
+            import torch
+            from TTS.api import TTS
+        except ImportError:
+            raise RuntimeError("Coqui TTS dependencies (torch, TTS) not found.")
+
+        self.model_name = os.getenv("COQUI_MODEL_NAME", "tts_models/en/ljspeech/vits")
+        self.speaker_name = os.getenv("COQUI_SPEAKER_NAME", "")
+        self.sample_rate = int(os.getenv("COQUI_SAMPLE_RATE", 22050))
+
+        # Explicitly setting device to CPU for stability (can be changed to 'cuda' if necessary)
+        # device = "cuda" if torch.cuda.is_available() else "cpu"
+        device = "cpu"
+
+        print(f"Coqui TTS: Using device {device}. Loading model {self.model_name}...")
+
+        try:
+            self.tts = TTS(
+                model_name=self.model_name,
+                progress_bar=True
+            ).to(device)
+
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to load Coqui TTS model '{self.model_name}'. Check model name and installation. Detail: {e}")
+
+    def read_text_chunk(self, text: str) -> AudioSegment:
+        """Generates audio data, adjusts speed, and returns it as an AudioSegment."""
+        temp_file = "temp_coqui.wav"
+
+        tts_kwargs = {
+            "text": text,
+            "file_path": temp_file
+        }
+
+        # Conditionally pass the speaker argument to prevent errors on single-speaker models (VITS)
+        if self.speaker_name and self.speaker_name.lower() != 'none':
+            tts_kwargs["speaker"] = self.speaker_name
+
+        try:
+            self.tts.tts_to_file(**tts_kwargs)
+
+            audio = AudioSegment.from_file(temp_file, format="wav")
+
+            if self.speaking_rate != 1.0:
+                audio = audio.speedup(playback_speed=self.speaking_rate)
+
+            # NOTE: We play here only if called in 'reading' mode (not saving mode)
+            if 'save_output' not in sys.argv:
+                self._play_audio(audio)
+
+            return audio
+
+        finally:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+
+
 def initialize_tts_engine(args: argparse.Namespace):
     """Initializes and returns the appropriate TTS engine based on arguments."""
 
