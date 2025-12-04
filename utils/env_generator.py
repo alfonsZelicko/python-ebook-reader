@@ -3,26 +3,21 @@ from config_definitions import CONFIG_DEFS
 
 
 def generate_env_file(filename=".env"):
-    """
-    Generates a .env configuration file based on the CONFIG_DEFS structure.
-    """
     print(f"--- Generating {filename} file ---")
 
     last_group = None
     output_lines = []
 
-    # 1. Build the file content
     for item in CONFIG_DEFS:
         group = item['group']
         key = item['key']
         default_val = item['default']
         help_text = item['help_text']
 
-        # Add section heading if the group changes
         if group != last_group:
-            output_lines.append("\n" + "#" * 65)
+            output_lines.append("\n#" + "*" * 65)
             output_lines.append(f"# {group}")
-            output_lines.append("#" * 65)
+            output_lines.append("#" + "*" * 65)
             last_group = group
 
         # Format the help text for comments
@@ -32,7 +27,6 @@ def generate_env_file(filename=".env"):
         # Add the KEY=VALUE line
         # Ensure string defaults are not wrapped, but special types like paths are treated as strings
         output_lines.append(f"{key}={default_val}")
-        output_lines.append("")  # Add newline for spacing
 
     # 2. Write to file
     try:

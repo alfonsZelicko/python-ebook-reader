@@ -79,19 +79,20 @@ python tts_reader.py --tts-engine G_CLOUD --output-file 600 ./long_novel.txt
 
 This table lists all available configuration parameters, which can be set in your **`.env` file** or overridden using the corresponding **Command-Line Interface (CLI) flag**.
 
-| CLI Flag | ENV Key (`dest`) | Description | Default Value |
-| :--- | :--- | :--- | :--- |
-| `--tts-engine` | **`TTS_ENGINE`** | Sets the TTS engine to use. Choices: `OFFLINE`, `ONLINE`, `G_CLOUD`, `COQUI`. | `ONLINE` |
-| `--chunk-size` | **`CHUNK_SIZE`** | The maximum number of characters per text segment for TTS processing. | `3500` |
-| `--speaking-rate` | **`SPEAKING_RATE`** | The speech rate multiplier (1.0 is normal speed). | `1.1` |
-| `--offline-voice-id` | **`OFFLINE_VOICE_ID`** | ID or Name of the voice for the OFFLINE engine (e.g., 'Microsoft Jakub'). | `""` |
-| `--language-code` | **`LANGUAGE_CODE`** | IETF BCP 47 language code for G\_CLOUD/gTTS (e.g., cs-CZ). | `cs-CZ` |
-| `--g-cloud-key-path` | **`G_CLOUD_KEY_PATH`** | Path to the Google Cloud service account JSON key file. | `./google-key.json` |
-| `--wavenet-voice` | **`WAVENET_VOICE`** | Name of the G\_CLOUD voice (WaveNet/Studio) to use. | `cs-CZ-Wavenet-B` |
-| `--output-file [DURATION]` | **`OUTPUT_FILE_DURATION`** | Activates Audiobook Export mode. The optional duration specifies max segment length in seconds. | `None` (Interactive Mode) |
-| `--coqui-model-name` | **`COQUI_MODEL_NAME`** | COQUI model path/name (e.g., `tts_models/cs/cv/vits`). | `tts_models/cs/cv/vits` |
-| `--coqui-speaker-name` | **`COQUI_SPEAKER_NAME`** | Speaker ID for COQUI multi-speaker models. | `""` |
-| `--coqui-sample-rate` | **`COQUI_SAMPLE_RATE`** | Sample rate for exported COQUI audio. | `22050` |
+| CLI Flag               | ENV Key (`dest`)         | Description                                                                                          | Default Value           |
+|:-----------------------|:-------------------------|:-----------------------------------------------------------------------------------------------------|:------------------------|
+| `--tts-engine`         | **`TTS_ENGINE`**         | Sets the TTS engine to use. Choices: `OFFLINE`, `ONLINE`, `G_CLOUD`, `COQUI`.                        | `ONLINE`                |
+| `--chunk-size`         | **`CHUNK_SIZE`**         | The maximum number of characters per text segment for TTS processing.                                | `3500`                  |
+| `--speaking-rate`      | **`SPEAKING_RATE`**      | The speech rate multiplier (1.0 is normal speed).                                                    | `1.1`                   |
+| `--offline-voice-id`   | **`OFFLINE_VOICE_ID`**   | ID or Name of the voice for the OFFLINE engine (e.g., 'Microsoft Jakub' or `HELP`).                  | `""`                    |
+| `--language-code`      | **`LANGUAGE_CODE`**      | IETF BCP 47 language code for G\_CLOUD/gTTS (e.g., cs-CZ).                                           | `cs-CZ`                 |
+| `--g-cloud-key-path`   | **`G_CLOUD_KEY_PATH`**   | Path to the Google Cloud service account JSON key file.                                              | `./google-key.json`     |
+| `--wavenet-voice`      | **`WAVENET_VOICE`**      | Name of the G\_CLOUD voice (WaveNet/Studio) to use.                                                  | `cs-CZ-Wavenet-B`       |
+| `--output-type `       | **`OUTPUT_TYPE`**        | Sets the output - reading or creating audio files. Choices: `FILE`, `AUDIO`                          | `AUDIO`                 |
+| `--max-file-duration ` | **`MAX_FILE_DURATION`**  | Max. audio duration {in sec} per MP3 segment. Exceeding this limit automatically creates a new file. | `600`                   |
+| `--coqui-model-name`   | **`COQUI_MODEL_NAME`**   | COQUI model path/name (e.g., `tts_models/cs/cv/vits`).                                               | `tts_models/cs/cv/vits` |
+| `--coqui-speaker-name` | **`COQUI_SPEAKER_NAME`** | Speaker ID for COQUI multi-speaker models.                                                           | `""`                    |
+| `--coqui-sample-rate`  | **`COQUI_SAMPLE_RATE`**  | Sample rate for exported COQUI audio.                                                                | `22050`                 |
 
 ---
 

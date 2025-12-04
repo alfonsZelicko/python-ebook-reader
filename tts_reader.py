@@ -1,11 +1,9 @@
 from dotenv import load_dotenv
 
-# --- PROJECT MODULES ---
 from core.engines import initialize_tts_engine
 from core.processor import start_processing
 from utils.args_manager import parse_arguments, validate_pre_execution_actions
 
-# Load variables from .env file into environment variables
 load_dotenv()
 
 
@@ -15,7 +13,7 @@ def main():
     # 1. PARSE ARGUMENTS
     args = parse_arguments()
 
-    # 2. PRE-EXECUTION VALIDATION & ACTIONS (Handles --generate-env, --offline-voice HELP, and incompatibilities)
+    # 2. PRE-EXECUTION VALIDATION & ACTIONS (Handles --generate-env, --offline-voice HELP, yada yada yada...)
     file_path = validate_pre_execution_actions(args)
 
     # 3. ENGINE INITIALIZATION

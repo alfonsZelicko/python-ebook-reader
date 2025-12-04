@@ -24,41 +24,50 @@ def parse_arguments() -> argparse.Namespace:
 
     # --- Iterate through definitions to build arguments ---
     for item in CONFIG_DEFS:
+
         key = item['key']
-        default_val = item['default']
         help_text = item['help_text']
-        arg_type = item.get('type', str)  # Default type is str
 
-        # 1. Determine the effective default (ENV or hardcoded default)
-        env_val = os.getenv(key)
-        effective_default = arg_type(env_val) if env_val is not None else default_val
+        argument_options = {
+            'dest': key,
+            'help': help_text,
+        }
 
-        # 2. Convert key name (e.g., TTS_ENGINE) to argument name (e.g., --tts-engine)
-        arg_name = "--" + key.lower().replace('_', '-')
+        # get safely optional parameters
+        arg_type = item.get('type', str)
+        options = item.get('choices')
+        action = item.get('action')
 
-        # 3. Build the argument help string with priority context
-        full_help = (
-            f"{help_text}\n"
-            f"Overrides the value from .env. (default: {effective_default})."
-        )
+        if options is not None:
+            argument_options['choices'] = options
 
-        # 4. Add the argument to the parser
-        parser.add_argument(
-            arg_name,
-            type=arg_type,
-            dest=key,  # Ensure the destination uses the uppercase key
-            default=effective_default,
-            help=full_help
-        )
+        # NOTE: action='store_true' internally sets type=bool and default=False,
+        # so we DO NOT pass type or default here.
+        if action is None:
+            default_val = item['default']
+            env_val = os.getenv(key)
 
-    # --- Add the special OUTPUT_FILE argument (since it needs nargs='?') ---
-    parser.add_argument("--output-file", type=int, nargs='?', const=900,
-                        default=None,
-                        dest="OUTPUT_FILE_DURATION",
-                        help="Activates audiobook export mode to MP3.\n"
-                             "Optional value is the maximum segment duration in seconds.\n"
-                             "(default duration when switch is used: 900s).")
-    # --- NEW: POSITIONAL ARGUMENT FOR INPUT FILE ---
+            # if default_value is defined in .env -> I must use it as default in parser, otherwise will default from
+            # configuration allways beat .env, and priority is: "CLI | .env | default"
+            if env_val is not None:
+                resolved_default = arg_type(env_val)  # PYTHON type conversion magic!
+            else:
+                resolved_default = default_val
+
+            argument_options['type'] = arg_type
+            argument_options['default'] = resolved_default
+
+            argument_options['help'] = (
+                f"{help_text}\n"
+                f"Overrides the value from .env. (default: {resolved_default})."
+            )
+        else:
+            argument_options['action'] = action
+
+        argument_name = "--" + key.lower().replace('_', '-')
+        parser.add_argument(argument_name, **argument_options)
+
+    # --- NEW: POSITIONAL ARGUMENT FOR INPUT FILE ON THE END :-) ---
     parser.add_argument('INPUT_FILE_PATH',
                         type=str,
                         nargs='?',
@@ -74,22 +83,26 @@ def validate_pre_execution_actions(args: argparse.Namespace) -> str:
     Handles utility actions (exits if done) and determines the final input file path.
     """
 
-    # --- Utility Actions (Exits if run) ---
-    if args.GENERATE_ENV or (args.OFFLINE_VOICE_ID and args.OFFLINE_VOICE_ID.upper() == "HELP"):
-        # Executes action and sys.exit(0) is called inside the respective utility function
-        # e.g., generate_env_file() or list_available_voices()
-        if args.GENERATE_ENV:
-            generate_env_file()
-        else:
-            list_available_voices()
+    # --- Utility Action 1: Generate .env File (Exits if run) ---
+    if args.GENERATE_ENV:
+        generate_env_file()
+        print("\n✅ Success: .env file generated successfully in the current directory.")
+        sys.exit(0)
 
+    # --- Utility Action 2: List Offline Voices (Exits if run) ---
+    if args.OFFLINE_VOICE_ID and args.OFFLINE_VOICE_ID.upper() == "HELP":
+        list_available_voices()
+        print("\n✅ Success: Available offline voices listed above.")
         sys.exit(0)
 
     # --- Validation Check (Exits on Error) ---
-    if args.OUTPUT_FILE_DURATION is not None and args.TTS_ENGINE == "OFFLINE":
+    if args.OUTPUT_TYPE == "FILE" and args.TTS_ENGINE == "OFFLINE":
+        print("\nERROR: Configuration Incompatibility.")
+        print("The OFFLINE engine (SAPI/pyttsx3) is currently not compatible with FILE output type (Audiobook Export).")
+        print("Please set OUTPUT_TYPE=AUDIO or use a different engine (ONLINE, G_CLOUD, or COQUI) for file export.")
         sys.exit(1)
 
-    # --- Input File Determination (The new logic) ---
+    # --- Input File Determination ---
     if args.INPUT_FILE_PATH:
         file_path = args.INPUT_FILE_PATH
         print(f"File selected from command line: {file_path}")
