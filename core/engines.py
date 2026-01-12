@@ -4,9 +4,11 @@ import argparse
 
 import platform
 import sys
+import numpy as np
 import pyttsx3
 import gtts
 from pydub import AudioSegment
+import logging
 
 # 1. Google Cloud Text-to-Speech (G_CLOUD engine)
 try:
@@ -200,74 +202,92 @@ class GoogleCloudTTSEngine(BaseTTSEngine):
 
 
 class CoquiTTSEngine(BaseTTSEngine):
-    """Implementation of offline TTS engine using Coqui TTS with lazy loading."""
+    """Implementation of offline TTS engine using Coqui TTS."""
 
-    def __init__(self, speaking_rate: float):
+    def __init__(self, speaking_rate: float, model_name: str, speaker_name: str, speaker_wav: str):
         super().__init__(speaking_rate)
+        print("Initializing OFFLINE engine (Coqui TTS)...")
 
-        # LAZY LOADING: Import heavy dependencies only when this class is instantiated
+        # Suppress verbose logging from Coqui TTS
+        logging.getLogger("TTS").setLevel(logging.ERROR)
+
         try:
             import torch
             from TTS.api import TTS
         except ImportError:
-            raise RuntimeError("Coqui TTS dependencies (torch, TTS) not found.")
+            raise ImportError(
+                "Coqui TTS dependencies (torch, coqui-tts) not found. Ensure both are installed.")
 
-        self.model_name = os.getenv("COQUI_MODEL_NAME", "tts_models/en/ljspeech/vits")
-        self.speaker_name = os.getenv("COQUI_SPEAKER_NAME", "")
-        self.sample_rate = int(os.getenv("COQUI_SAMPLE_RATE", 22050))
+        self.model_name = model_name
+        self.speaker_name = speaker_name
+        self.speaker_wav = speaker_wav
 
-        # Explicitly setting device to CPU for stability (can be changed to 'cuda' if necessary)
-        # device = "cuda" if torch.cuda.is_available() else "cpu"
-        device = "cpu"
-
-        print(f"Coqui TTS: Using device {device}. Loading model {self.model_name}...")
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"Coqui TTS: Using device '{device}'. Loading model '{self.model_name}'...")
 
         try:
-            self.tts = TTS(
-                model_name=self.model_name,
-                progress_bar=True
-            ).to(device)
-
+            # Load the TTS model and move it to the determined device (cuda/cpu)
+            self.tts = TTS(model_name=self.model_name, progress_bar=False).to(device)
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to load Coqui TTS model '{self.model_name}'. Check model name and installation. Detail: {e}")
+            raise RuntimeError(f"Failed to load Coqui TTS model '{self.model_name}'. Check model name. Detail: {e}")
 
-    def read_text_chunk(self, text: str) -> AudioSegment:
-        """Generates audio data, adjusts speed, and returns it as an AudioSegment."""
-        temp_file = "temp_coqui.wav"
+        # # --- MODEL CAPABILITY CHECKS (ROBUST AND FAIL FAST) ---
+        # # Fail Fast: Check if speaker_wav is provided but the model lacks the necessary component.
+        # if self.speaker_wav and not hasattr(self.tts.synthesizer, 'speaker_manager'):
+        #     raise ValueError(f"Model '{self.model_name}' does not support speaker sampling (speaker_wav).")
 
-        tts_kwargs = {
-            "text": text,
-            "file_path": temp_file
-        }
+    @staticmethod
+    def _float_to_pcm(waveform: list) -> bytes:
+        """
+        Converts a list or numpy array of normalized floating-point audio data (range -1.0 to 1.0)
+        to a 16-bit signed PCM byte array (range -32767 to 32767).
 
-        # Conditionally pass the speaker argument to prevent errors on single-speaker models (VITS)
-        if self.speaker_name and self.speaker_name.lower() != 'none':
-            tts_kwargs["speaker"] = self.speaker_name
+        This conversion is necessary because TTS models output float data, but standard audio libraries
+        (like pydub/AudioSegment) expect raw PCM integer byte data.
+        """
+        # The scaling factor 32767 corresponds to the maximum amplitude for a 16-bit signed integer (2^15 - 1).
+        return (np.array(waveform) * 32767).astype(np.int16).tobytes()
+
+    def generate_audio_chunk(self, text: str) -> AudioSegment:
+        """Generates audio data in-memory and returns it as an AudioSegment."""
+        tts_options = {"text": text}
+
+        # Set speaker options based on what was provided and validated in __init__
+        if self.speaker_wav:
+            tts_options["speaker_wav"] = self.speaker_wav
+        elif self.speaker_name and self.speaker_name.lower() != 'none':
+            tts_options["speaker"] = self.speaker_name
 
         try:
-            self.tts.tts_to_file(**tts_kwargs)
+            # Generate waveform in-memory as a list or numpy array (float data)
+            waveform = self.tts.tts(**tts_options)
 
-            audio = AudioSegment.from_file(temp_file, format="wav")
+            # Convert float waveform to 16-bit PCM byte array using the dedicated static method
+            pcm_data = CoquiTTSEngine._float_to_pcm(waveform)
+
+            # Create an AudioSegment from raw PCM data
+            audio = AudioSegment(
+                data=pcm_data,
+                sample_width=2,  # 2 bytes = 16-bit
+                frame_rate=self.tts.synthesizer.output_sample_rate,
+                channels=1
+            )
 
             if self.speaking_rate != 1.0:
+                # Use speedup from pydub for speaking rate modification
                 audio = audio.speedup(playback_speed=self.speaking_rate)
-
-            # NOTE: We play here only if called in 'reading' mode (not saving mode)
-            if 'save_output' not in sys.argv:
-                self._play_audio(audio)
 
             return audio
 
-        finally:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
+        except Exception as e:
+            print(f"Error processing Coqui TTS chunk: {e}")
+            raise
 
 
 def initialize_tts_engine(args: argparse.Namespace):
     """Initializes and returns the appropriate TTS engine based on arguments."""
 
-    engine_choice = args.TTS_ENGINE
+    engine_choice = args.TTS_ENGINE.upper()
     speaking_rate = args.SPEAKING_RATE
     language_code = args.LANGUAGE_CODE
 
@@ -283,12 +303,13 @@ def initialize_tts_engine(args: argparse.Namespace):
             credentials_path = args.G_CLOUD_CREDENTIALS
             voice_id = args.WAVENET_VOICE
             lang_code = language_code
-
-            # Returns an instance with all parameters passed directly
             return GoogleCloudTTSEngine(speaking_rate, credentials_path, voice_id, lang_code)
 
+        elif engine_choice == "COQUI":
+            return CoquiTTSEngine(speaking_rate, args.COQUI_MODEL_NAME, args.COQUI_SPEAKER_NAME, args.COQUI_SPEAKER_WAV)
+
         else:
-            raise ValueError(f"Unknown engine choice: {engine_choice}")
+            raise ValueError(f"Unknown engine choice: {engine_choice}, available options: ONLINE, G_CLOUD, COQUI, OFFLINE")
 
     except Exception as e:
         print(f"CRITICAL ERROR: Could not initialize the selected TTS engine ({engine_choice}).")

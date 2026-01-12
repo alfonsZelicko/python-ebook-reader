@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages]
+find = { include = ["core", "core.*", "utils", "utils.*"] }
+
+[project]
+name = "modular-tts-engine"
+version = "0.1.0"
+description = "Modular TTS engine supporting offline (pyttsx3, Coqui) and online (gTTS, Google Cloud) services."
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    {name = "Alfons Zelicko", email = "zelicko.alfons@gmail.com"}
+]
+
+# 1. CORE DEPENDENCIES
+dependencies = [
+    "python-dotenv~=1.2.1",
+    "tqdm~=4.67.1",
+    "pyttsx3~=2.99",
+    "gTTS~=2.5.4",
+    "pydub~=0.25.1",
+    "simpleaudio~=1.0.4",
+    "google-cloud-texttospeech",
+    "cachetools~=6.2.2",
+    "certifi~=2024.7.4",
+    "charset-normalizer~=3.4.4",
+    "click~=8.1.8",
+    "grpcio~=1.76.0",
+    "grpcio-status~=1.76.0",
+    "idna~=3.11",
+    "proto-plus~=1.26.1",
+    "protobuf~=6.33.1",
+    "pyasn1~=0.6.1",
+    "pyasn1-modules~=0.4.2",
+    "requests~=2.32.5",
+    "urllib3~=2.5.0",
+    "colorama~=0.4.6",
+    "rsa~=4.9.1",
+]
+
+# 2. OPTIONAL DEPENDENCIES (EXTRAS)
+[project.optional-dependencies]
+
+# Coqui XTTS Engine (CUDA + TTS)
+coqui = [
+    "numpy~=1.26.4",
+    "coqui-tts>=0.27.2",
+    "torch==2.8.0",
+    "torchaudio==2.8.0",
+]
+
+# Windows-specific dependencies
+windows = [
+    "pywin32>=311",
+    "comtypes~=1.4.13",
+    "typing-extensions~=4.15.0",
+]

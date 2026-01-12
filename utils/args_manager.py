@@ -95,12 +95,21 @@ def validate_pre_execution_actions(args: argparse.Namespace) -> str:
         print("\n✅ Success: Available offline voices listed above.")
         sys.exit(0)
 
-    # --- Validation Check (Exits on Error) ---
+    # --- Validation Checks (Exits on Error) ---
     if args.OUTPUT_TYPE == "FILE" and args.TTS_ENGINE == "OFFLINE":
         print("\nERROR: Configuration Incompatibility.")
         print("The OFFLINE engine (SAPI/pyttsx3) is currently not compatible with FILE output type (Audiobook Export).")
         print("Please set OUTPUT_TYPE=AUDIO or use a different engine (ONLINE, G_CLOUD, or COQUI) for file export.")
         sys.exit(1)
+
+    # --- COQUI Engine Specific Validations ---
+    if args.TTS_ENGINE == "COQUI" and args.COQUI_SPEAKER_WAV:
+        if not os.path.exists(args.COQUI_SPEAKER_WAV):
+            print(f"\nERROR: The file specified for --coqui-speaker-wav was not found.")
+            print(f"Path: {args.COQUI_SPEAKER_WAV}")
+            sys.exit(1)
+        else:
+            print(f"INFO: Using custom voice for COQUI engine from: {args.COQUI_SPEAKER_WAV}")
 
     # --- Input File Determination ---
     if args.INPUT_FILE_PATH:

@@ -99,6 +99,12 @@ CONFIG_DEFS = [
         "group": "COQUI CONFIGURATION (Offline AI TTS)"
     },
     {
+        "key": "COQUI_SPEAKER_WAV",
+        "default": "",
+        "help_text": "Path to a WAV file for custom speaker cloning (e.g., /path/to/my_voice.wav).",
+        "group": "COQUI CONFIGURATION (Offline AI TTS)"
+    },
+    {
         "key": "COQUI_SAMPLE_RATE",
         "default": 22050,
         "type": int,

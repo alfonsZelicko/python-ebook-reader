@@ -7,8 +7,8 @@ _sentence_split_regex = re.compile(r'(\.\.\.|[.!?;:\u2014\u2013])')
 
 
 def split_sentences(text: str) -> List[str]:
-    text = _whitespace_regex.sub(' ', text).strip()
-    parts = _sentence_split_regex.split(text)
+    text = _whitespace_regex.sub(' ', text).strip() # remove "multiple spaces"
+    parts = _sentence_split_regex.split(text) # splitting text by "?" | "!" | "." ...
 
     sentences = []
     for i in range(0, len(parts), 2):
@@ -19,45 +19,28 @@ def split_sentences(text: str) -> List[str]:
 
     return sentences
 
-
-def split_long_sentence(sentence: str, max_size: int) -> List[str]:
-    words = sentence.split()
-    result = []
-    current = ""
-
-    for word in words:
-        if len(current) + len(word) + 1 <= max_size:
-            current = f"{current} {word}".strip()
-        else:
-            result.append(current)
-            current = word
-
-    if current:
-        result.append(current)
-
-    return result
-
-
 def chunk_text(text: str, max_chunk_size: int) -> List[str]:
     sentences = split_sentences(text)
     chunks = []
-    current = ""
+    current_chunk = ""
 
     for sentence in sentences:
+        sentence = sentence.strip()
+        if sentence == "":
+            continue
 
-        if len(sentence) > max_chunk_size:
-            long_parts = split_long_sentence(sentence, max_chunk_size)
+        # Determine if we need a separator
+        candidate = (" " if current_chunk else "") + sentence
+
+        if len(current_chunk) + len(candidate) <= max_chunk_size:
+            current_chunk += candidate
         else:
-            long_parts = [sentence]
+            if current_chunk:
+                chunks.append(current_chunk)
+            current_chunk = sentence
 
-        for part in long_parts:
-            if len(current) + len(part) + 1 <= max_chunk_size:
-                current = f"{current} {part}".strip()
-            else:
-                chunks.append(current)
-                current = part
-
-    if current:
-        chunks.append(current)
+    # Append the last remaining chunk
+    if current_chunk:
+        chunks.append(current_chunk)
 
     return chunks

@@ -18,23 +18,74 @@ generation**.
 
 ---
 
-## 🛠️ Setup and Configuration
+## 🛠️ Installation and Setup
 
-### Dynamic Setup & Utilities
+This project uses a modular dependency system. Start with a minimal installation and add features as needed.
 
-The script includes built-in utilities for quick setup.
+### Prerequisites
+You need Python 3.10+ installed.
 
-#### Generate `.env` template
+### 1. Minimal Installation
+This command installs the core dependencies required to run the application.
 
-``` bash
-python tts_reader.py --generate-env
+```bash
+pip install .
 ```
+By default, this enables the following engines:
+*   **`ONLINE`**: Works out-of-the-box.
+*   **`G_CLOUD`**: Works after completing the engine-specific setup below.
 
-#### List available offline voices
+### 2. Activating Additional Engines
+To use other engines, you need to install extra dependencies.
 
-``` bash
-python tts_reader.py --offline-voice HELP
-```
+#### `OFFLINE` Engine (Platform-Specific)
+
+*   **On Windows**, to use the high-quality native SAPI voices, install the `windows` extra:
+    ```bash
+    pip install .[windows]
+    ```
+*   **On Linux**, the `OFFLINE` engine relies on `pyttsx3`, which may require a system-level TTS package like `espeak`. You can install it with:
+    ```bash
+    sudo apt update && sudo apt install espeak
+    ```
+
+#### `COQUI` Engine (Advanced Offline)
+This engine provides high-quality, modern offline TTS. For GPU acceleration (recommended), you must also specify the correct PyTorch index for your CUDA version.
+
+1.  **Determine your CUDA version:** Check the [official PyTorch website](https://pytorch.org/get-started/locally/) for the correct URL (e.g., for CUDA 12.1).
+2.  **Install with extras:**
+    ```bash
+    # Example for CUDA 12.1. Optional: Add 'windows' for Windows SAPI support.
+    pip install .[coqui,windows] --extra-index-url https://download.pytorch.org/whl/cu121
+    ```
+
+---
+
+## 🌐 Engine-Specific Setup
+Some engines require external resources or configuration steps outside of Python package installation.
+
+### A) Coqui XTTS Engine (Voice Options)
+The Coqui XTTS engine requires loading speaker voice profiles.
+
+*   **Custom Voices:** To use your own cloned voices, place the speaker WAV files and corresponding configuration files (if applicable) in the designated project folder.
+*   **Default Voices:** For a list of officially supported voices and their IDs, please refer to the [Official Coqui TTS Documentation](https://docs.coqui.ai/en/latest/).
+
+### B) Google Cloud TTS (WaveNet)
+To use the high-quality Google Cloud Text-to-Speech service, you must authenticate your application.
+
+1.  **Create a Service Account:** In the Google Cloud Console, create a service account and grant it the `Cloud Text-to-Speech API User` role.
+2.  **Download JSON Key:** Download the generated JSON key file for your service account.
+3.  **Configure the Application:** Set the path to your downloaded key file using one of the following methods:
+    *   **In the `.env` file:**
+        ```
+        G_CLOUD_CREDENTIALS="/path/to/your/keyfile.json"
+        ```
+    *   **As a command-line argument:**
+        ```bash
+        python tts_reader.py --g-cloud-credentials "/path/to/your/keyfile.json" ...
+        ```
+
+The application will automatically handle authentication. You can find a more detailed official guide here: [Google Cloud Authentication Documentation](https://cloud.google.com/docs/authentication/getting-started) or [Youtube Step by Step instructions - 2025](https://www.youtube.com/watch?v=vlYWt3qcYkc).
 
 ---
 
@@ -82,7 +133,7 @@ To restart the process from the beginning and apply new parameters, delete the p
 
 ## ⚙️ Configuration Parameters and Description
 
-This table lists all available configuration parameters, which can be set in your **`.env` file** or overridden using the corresponding **Command-Line Interface (CLI) flag**.
+This table lists all available configuration parameters, which can be set in your **`.env` file`** or overridden by the corresponding **Command-Line Interface (CLI) flag**.
 
 | CLI Flag               | ENV Key (`dest`)         | Description                                                                                          | Default Value           |
 |:-----------------------|:-------------------------|:-----------------------------------------------------------------------------------------------------|:------------------------|
@@ -91,7 +142,7 @@ This table lists all available configuration parameters, which can be set in you
 | `--speaking-rate`      | **`SPEAKING_RATE`**      | The speech rate multiplier (1.0 is normal speed).                                                    | `1.1`                   |
 | `--offline-voice-id`   | **`OFFLINE_VOICE_ID`**   | ID or Name of the voice for the OFFLINE engine (e.g., 'Microsoft Jakub' or `HELP`).                  | `""`                    |
 | `--language-code`      | **`LANGUAGE_CODE`**      | IETF BCP 47 language code for G\_CLOUD/gTTS (e.g., cs-CZ).                                           | `cs-CZ`                 |
-| `--g-cloud-key-path`   | **`G_CLOUD_KEY_PATH`**   | Path to the Google Cloud service account JSON key file.                                              | `./google-key.json`     |
+| `--g-cloud-credentials`| **`G_CLOUD_CREDENTIALS`**| Path to the Google Cloud service account JSON key file.                                              | `./google-key.json`     |
 | `--wavenet-voice`      | **`WAVENET_VOICE`**      | Name of the G\_CLOUD voice (WaveNet/Studio) to use.                                                  | `cs-CZ-Wavenet-B`       |
 | `--output-type `       | **`OUTPUT_TYPE`**        | Sets the output - reading or creating audio files. Choices: `FILE`, `AUDIO`                          | `AUDIO`                 |
 | `--max-file-duration ` | **`MAX_FILE_DURATION`**  | Max. audio duration {in sec} per MP3 segment. Exceeding this limit automatically creates a new file. | `600`                   |
