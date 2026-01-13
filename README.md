@@ -99,6 +99,8 @@ This table lists all available configuration parameters, which can be set in you
 | `--coqui-speaker-name` | **`COQUI_SPEAKER_NAME`** | Speaker ID for COQUI multi-speaker models.                                                           | `""`                    |
 | `--coqui-sample-rate`  | **`COQUI_SAMPLE_RATE`**  | Sample rate for exported COQUI audio.                                                                | `22050`                 |
 
+> Parameters are defined in the `config_definitions.py` file, which serves as the single source of truth (SSOT). All other scripts (`args_manager.py`, `env_generator.py`) operate exclusively on parameters generated from this file.
+
 ---
 
 ### Utility Flags (Actions)
@@ -110,27 +112,57 @@ These flags trigger specific actions and cause the script to exit immediately wi
 | `--generate-env` | Generates a template `.env` file based on these definitions and exits. |
 | `--offline-voice HELP` | Prints a list of available OFFLINE (SAPI/pyttsx3) voices on your current system and exits. |
 
-## 🔮 Future Plans (Enhanced Platform Independence)
+---
 
-Planned roadmap priorities:
+## 🔮 Future Roadmap (Platform Independence & AI Evolution)
 
-### ✅ Version Control Integration
+The following priorities outline the development path for enhancing the platform's capabilities, intelligence, and accessibility.
 
--   Introduce **semantic versioning** (e.g. `v1.0.0`)
--   Reliable dependency tracking and release management
+---
 
-### ✅ Advanced TTS Support
+### 📦 System Architecture & Distribution
 
--   Experimental **offline COQUI TTS integration**
--   High-quality AI voices without cloud dependency
+* **Version Control & Release Management**
+    * Implementation of **Semantic Versioning** (e.g., `v1.0.0`) for stable release tracking
+    * Development of an **Automated Release Pipeline** using CI/CD to generate standalone executables via **PyInstaller**
+    * Primary targets: **Windows & Linux**
 
-### ✅ Critical Platform Independence
+* **Critical Platform Independence** ✅
+    * Conditional loading of OS-specific dependencies (e.g., `pywin32` for Windows)
+    * Ensuring clean, isolated environments for **Linux and macOS** without redundant Windows-specific packages
 
--   Conditional loading of Windows-only dependencies (`pywin32`)
--   Clean Linux/macOS environments without Windows-specific packages
+* **HTML-based UI & Web Integration**
+    * Development of a web-based interface to expose the script as a service (via Django?)
+    * Implementation of **Throttling & Credits**: Due to AI API costs, functionality will be throttled, with future plans for paid credit tiers or account linking
 
-### ✅ Automated Release Pipeline
+---
 
--   CI/CD pipeline for **standalone executables**
--   Packaging via **PyInstaller**
--   Targets: **Windows & Linux**
+### 🎙️ Advanced TTS & Voice Synthesis
+
+* **Offline COQUI TTS Integration** (Experimental)
+    * Enabling high-quality, local AI voice synthesis to eliminate cloud dependency
+    * **Current Status:** Experimental support is functional but exhibits Czech accent artifacts. Compatibility issues between `XTTS-v2` and specific `torch`/CUDA versions are currently blocking stable release. Development is paused pending upstream fixes
+
+* **Contextual Google Voice Studio Integration**
+    * Moving beyond simple text-to-speech by generating **Contextual Prompts** to control tone, speed, and emotion
+    * **Global Character Memory:** Maintaining consistent vocal identities for specific characters throughout the narrative
+    * **Emotional Awareness:** Dynamically adjusting voice parameters based on the story's mood (e.g., tension, excitement)
+
+---
+
+### 🤖 AI-Driven Translation & Linguistics
+
+* **Intelligent Text Translation Workflow**
+    * Multi-stage pipeline: **Source Text → AI Translation → Audio Generation**
+    * **Context-Aware Translation:** Behavior is governed by specialized prompts (e.g., *"Translate as a professional fantasy novelist"*)
+    * **Prompt Inference:** System can manually or automatically infer the best translation style based on metadata like title or genre
+
+* **Intelligent Name Normalization (Phonetic TTS)**
+    * Handling complex proper nouns (e.g., *"Omtose Phellack"*) to ensure natural pronunciation in the target language
+    * **Translation Logic:** Configurable rules to decide whether names should be translated, transliterated, or preserved
+    * **Phonetic Rewriting:** Leveraging AI to generate TTS-optimized phonetic representations to bypass engine-specific pronunciation errors
+
+---
+
+### 🚧 Current Development Status
+> **Note on Translation Engine:** The AI translation layer is fully functional internally but remains in a "Private Beta" stage. It is currently undergoing additional debugging and stabilization before being merged into the public repository
