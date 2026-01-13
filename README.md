@@ -73,6 +73,11 @@ Resumption is based strictly on the **input source file** and the presence of th
 python tts_reader.py --tts-engine G_CLOUD --output-file 600 ./long_novel.txt
 ```
 
+This will initiate a process that creates a directory named _long_novel_ and generates 600-second audio segments named _XX_long_novel.mp3_.
+
+During execution, a temporary progress file _long_novel.progress_ is created to store the current processing state and the initial parameters. If the command is re-run before the generation finishes, the stored parameters from this file will override any newly provided parameters and the process will resume from the saved progress.
+To restart the process from the beginning and apply new parameters, delete the progress file before re-running the command.
+
 ---
 
 ## ⚙️ Configuration Parameters and Description
