@@ -6,6 +6,8 @@
 # - group: For structuring the .env file.
 # - choices (Optional): A list of valid strings to restrict CLI input (used by argparse).
 
+# - the file is used (at this point) in env_generator.py & args_manager.py - to unify place with possible params for the script
+
 CONFIG_DEFS = [
     # --- CORE CONFIGURATION ---
     {

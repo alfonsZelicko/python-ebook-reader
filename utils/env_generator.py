@@ -3,6 +3,11 @@ from config_definitions import CONFIG_DEFS
 
 
 def generate_env_file(filename=".env"):
+    """
+    It is basically a .env file generator. It creates a <filename>, based on config_definitions.py file
+    :param filename:
+    :return: void
+    """
     print(f"--- Generating {filename} file ---")
 
     last_group = None
@@ -24,11 +29,9 @@ def generate_env_file(filename=".env"):
         comment = "# " + help_text.replace('\n', '\n# ')
         output_lines.append(comment)
 
-        # Add the KEY=VALUE line
-        # Ensure string defaults are not wrapped, but special types like paths are treated as strings
+        # Ensure string defaults are not wrapped, but special types like paths are treated as strings!
         output_lines.append(f"{key}={default_val}")
 
-    # 2. Write to file
     try:
         with open(filename, 'w') as f:
             f.write('\n'.join(output_lines).strip())
