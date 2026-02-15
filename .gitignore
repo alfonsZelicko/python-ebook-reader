@@ -140,10 +140,13 @@ celerybeat.pid
 # Environment/config files
 .env
 .envrc
+.env.translator
+.env.tts
 
 # Sensitive files
 google-key.json
 test.txt
+test_en.txt
 
 # Spyder project settings
 .spyderproject
@@ -211,4 +214,5 @@ __marimo__/
 .DS_Store
 .idea/
 .vscode/
+.kiro/
 Thumbs.db

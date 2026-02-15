@@ -1,4 +1,3 @@
-import shutil
 import sys
 import os
 import tqdm
@@ -6,9 +5,8 @@ import simpleaudio as sa
 from pydub import AudioSegment
 import argparse
 
-# Import internal dependencies
-from core.engines import OfflineTTSEngine, BaseTTSEngine  # Need BaseTTSEngine for type hinting
-from core.progress import ProgressManager
+from core.tts_engines import OfflineTTSEngine, BaseTTSEngine
+from utils.progress import ProgressManager
 from utils.text_processor import chunk_text
 
 def start_processing(file_path: str, tts_engine: BaseTTSEngine, args: argparse.Namespace):
@@ -25,7 +23,6 @@ def start_processing(file_path: str, tts_engine: BaseTTSEngine, args: argparse.N
         print(f"\n--- Starting Live Reading (Engine: {args.TTS_ENGINE}) ---")
         process_reading(file_path, tts_engine, args)
 
-
 def process_reading(file_path: str, engine: BaseTTSEngine, args: argparse.Namespace):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -34,19 +31,18 @@ def process_reading(file_path: str, engine: BaseTTSEngine, args: argparse.Namesp
         print(f"Error reading source file {file_path}: {e}")
         sys.exit(1)
 
-    # Chunk text based on runtime arguments
     chunks = chunk_text(full_text, args.CHUNK_SIZE)
     is_offline_engine = isinstance(engine, OfflineTTSEngine)
 
     for chunk in tqdm.tqdm(chunks, desc="Reading Progress"):
         if is_offline_engine:
             # OFFLINE engine handles playback internally and returns nothing
+            # TODO: find a better solution!
             engine.generate_audio_chunk(chunk)
         else:
-            # ONLINE/GCLOUD engine generates audio data (AudioSegment)
+            # ONLINE/G_CLOUD/COQUI engine generates audio data (AudioSegment)
             audio_data = engine.generate_audio_chunk(chunk)
 
-            # Explicitly play the returned audio data
             play_obj = sa.play_buffer(
                 audio_data.raw_data,
                 num_channels=audio_data.channels,
@@ -59,11 +55,18 @@ def process_reading(file_path: str, engine: BaseTTSEngine, args: argparse.Namesp
 
 
 def export_audiobook(file_path: str, tts_engine: BaseTTSEngine, args: argparse.Namespace):
-    # 1. INITIALIZE PROGRESS MANAGER AND LOAD STATE (Manager automatically overrides args)
+    """
+    It exports audio as a audio file(s).
+    :param file_path: Input file -> it will be used as a namespace and source
+    :param tts_engine: It should never be BaseTTSEngine/OfflineTTSEngine
+    :param args:
+    :return:
+    """
+    # INITIALIZE PROGRESS MANAGER AND LOAD STATE (Manager automatically overrides args!!!)
     manager = ProgressManager(file_path, args)
     manager.load_state()
 
-    # 2. LOAD TEXT AND DETERMINE STARTING POINT
+    # LOAD TEXT AND DETERMINE STARTING POINT
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             full_text = f.read()
@@ -87,11 +90,9 @@ def export_audiobook(file_path: str, tts_engine: BaseTTSEngine, args: argparse.N
     print(
         f"Total chunks: {total_chunks}. Starting from chunk index {start_chunk_index} for file {current_mp3_index:02d}.")
 
-    # 3. MAIN EXPORT LOOP
+    # MAIN EXPORT LOOP
     max_duration_ms = manager.current_args['MAX_FILE_DURATION'] * 1000
-
     chunks_to_process = all_chunks[start_chunk_index:]
-
     current_segment_audio = AudioSegment.empty()
     last_processed_chunk_index = start_chunk_index - 1
 
@@ -104,21 +105,18 @@ def export_audiobook(file_path: str, tts_engine: BaseTTSEngine, args: argparse.N
             # --- DECISION POINT: CHECK DURATION LIMIT ---
             if (len(current_segment_audio) + len(new_audio_chunk) > max_duration_ms and
                     len(current_segment_audio) > 0):
-                # 1. SAVE
+                # SAVE
                 output_filename = manager.get_next_mp3_filename(current_mp3_index)
-
-                print(
-                    f"\n[SAVE] Saving segment {current_mp3_index:02d} to {os.path.basename(output_filename)} (Duration: {len(current_segment_audio) / 1000:.2f}s)")
-
+                print(f"\n[SAVE] Saving segment {current_mp3_index:02d} to {os.path.basename(output_filename)} (Duration: {len(current_segment_audio) / 1000:.2f}s)")
                 current_segment_audio.export(output_filename, format="mp3", bitrate="192k")
 
-                # 2. UPDATE PROGRESS FILE
+                # UPDATE PROGRESS FILE
                 manager.update_state(
                     last_chunk_index=last_processed_chunk_index,
                     last_mp3_index=current_mp3_index
                 )
 
-                # 3. RESET
+                # RESET
                 current_mp3_index += 1
                 current_segment_audio = AudioSegment.empty()
 
@@ -130,15 +128,11 @@ def export_audiobook(file_path: str, tts_engine: BaseTTSEngine, args: argparse.N
             print(f"Details: {e}")
             sys.exit(1)
 
-    # 4. FINAL CLEANUP AFTER LOOP
+    # FINAL CLEANUP AFTER LOOP
     if len(current_segment_audio) > 0:
         output_filename = manager.get_next_mp3_filename(current_mp3_index)
-
-        print(
-            f"\n[SAVE] Saving final segment {current_mp3_index:02d} to {os.path.basename(output_filename)} (Duration: {len(current_segment_audio) / 1000:.2f}s)")
-
+        print(f"\n[SAVE] Saving final segment {current_mp3_index:02d} to {os.path.basename(output_filename)} (Duration: {len(current_segment_audio) / 1000:.2f}s)")
         current_segment_audio.export(output_filename, format="mp3", bitrate="192k")
-
         manager.update_state(
             last_chunk_index=total_chunks - 1,
             last_mp3_index=current_mp3_index

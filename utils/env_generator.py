@@ -1,19 +1,36 @@
 import sys
-from config_definitions import CONFIG_DEFS
+from core.tts_args_definition import TTS_CONFIG_DEFS
+from core.translator_args_definition import TRANSLATOR_CONFIG_DEFS
 
 
-def generate_env_file(filename=".env"):
+def generate_env_file(mode="TTS"):
     """
-    It is basically a .env file generator. It creates a <filename>, based on config_definitions.py file
-    :param filename:
-    :return: void
+    Generates a mode-specific .env file based on configuration definitions.
+    
+    Args:
+        mode: "TTS" or "TRANSLATOR" to determine which config to use
+        
+    Output:
+        - TTS mode: Creates .env.tts
+        - TRANSLATOR mode: Creates .env.translator
     """
-    print(f"--- Generating {filename} file ---")
+    # Determine config and filename based on mode
+    if mode == "TTS":
+        config_defs = TTS_CONFIG_DEFS
+        filename = ".env.tts"
+    elif mode == "TRANSLATOR":
+        config_defs = TRANSLATOR_CONFIG_DEFS
+        filename = ".env.translator"
+    else:
+        print(f"ERROR: Invalid mode '{mode}'. Must be 'TTS' or 'TRANSLATOR'.")
+        sys.exit(1)
+    
+    print(f"--- Generating {filename} file for {mode} mode ---")
 
     last_group = None
     output_lines = []
 
-    for item in CONFIG_DEFS:
+    for item in config_defs:
         group = item['group']
         key = item['key']
         default_val = item['default']

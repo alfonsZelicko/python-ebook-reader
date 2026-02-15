@@ -1,25 +1,28 @@
+import sys
+
 from dotenv import load_dotenv
 
-from core.engines import initialize_tts_engine
-from core.processor import start_processing
+from core.tts_engines import initialize_tts_engine
+from core.tts_processor import start_processing
 from utils.args_manager import parse_arguments, validate_pre_execution_actions
+from core.tts_args_definition import TTS_CONFIG_DEFS;
 
-load_dotenv()
-
+# Load TTS-specific environment variables
+load_dotenv('.env.tts')
 
 def main():
-    """The main entry point, orchestrating the script's execution flow."""
+    """The main entry point, orchestrating the script's execution reading flow."""
 
-    # 1. PARSE ARGUMENTS
-    args = parse_arguments()
+    # PARSE ARGUMENTS
+    args = parse_arguments(mode="TTS")
 
-    # 2. PRE-EXECUTION VALIDATION & ACTIONS (Handles --generate-env, --offline-voice HELP, yada yada yada...)
-    file_path = validate_pre_execution_actions(args)
+    # PRE-EXECUTION VALIDATION & ACTIONS (Handles --generate-env, --offline-voice HELP, yada yada yada...)
+    file_path = validate_pre_execution_actions(args, mode="TTS")
 
-    # 3. ENGINE INITIALIZATION
+    # ENGINE INITIALIZATION
     tts_engine = initialize_tts_engine(args)
 
-    # 4. EXECUTION
+    # EXECUTION
     start_processing(file_path, tts_engine, args)
 
     print("\nScript execution finished.")

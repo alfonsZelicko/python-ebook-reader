@@ -18,7 +18,7 @@ class ProgressManager:
         self.output_dir = os.path.join(file_dir, base_name)
         self.progress_file = os.path.join(self.output_dir, f"{base_name}.progress")
 
-        # Save current arguments as a dictionary (used as default state and to check keys)
+        # Save current arguments as a dictionary (used as the default state and to check keys)
         self.current_args = vars(args)
         # Stores loaded or current progress state
         self.state: Dict[str, Any] = {}

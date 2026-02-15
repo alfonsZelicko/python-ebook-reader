@@ -8,7 +8,7 @@
 
 # - the file is used (at this point) in env_generator.py & args_manager.py - to unify place with possible params for the script
 
-CONFIG_DEFS = [
+TTS_CONFIG_DEFS = [
     # --- CORE CONFIGURATION ---
     {
         "key": "TTS_ENGINE",
@@ -61,7 +61,7 @@ CONFIG_DEFS = [
     {
         "key": "OFFLINE_VOICE_ID",
         "default": "",
-        "help_text": "ID/Name of the desired voice. (e.g., 'Microsoft Jakub').",
+        "help_text": "ID/Name of the desired voice. (e.g., 'Microsoft Jakub', use 'HELP' if you want to list available options).",
         "group": "OFFLINE ENGINE CONFIGURATION (pyttsx3/SAPI)"
     },
 
@@ -83,21 +83,21 @@ CONFIG_DEFS = [
     {
         "key": "WAVENET_VOICE",
         "default": "cs-CZ-Standard-B",
-        "help_text": "Name of the WaveNet/Studio voice to use. \nList of options here: https://docs.cloud.google.com/text-to-speech/docs/list-voices-and-types",
+        "help_text": "Name of the WaveNet/Studio voice to use. \nList of options here: https://cloud.google.com/text-to-speech/docs/voices",
         "group": "GOOGLE CLOUD CONFIGURATION (G_CLOUD)"
     },
 
     # --- COQUI CONFIGURATION ---
     {
         "key": "COQUI_MODEL_NAME",
-        "default": "tts_models/cs/cv/vits",
-        "help_text": "COQUI model path/name (e.g., tts_models/cs/cv/vits).",
+        "default": "tts_models/multilingual/multi-dataset/xtts_v2",
+        "help_text": "COQUI model path/name (e.g., tts_models/cs/cv/vits || tts_models/multilingual/multi-dataset/xtts_v2).",
         "group": "COQUI CONFIGURATION (Offline AI TTS)"
     },
     {
         "key": "COQUI_SPEAKER_NAME",
         "default": "",
-        "help_text": "Speaker ID for multi-speaker models (leave empty if not applicable).",
+        "help_text": "Speaker ID for multi-speaker models (leave empty if not applicable, examples for XTTSv2: \nAna Lucia, Daisy Enjoli, Gracie Wisla, Tammie Juma,Damien Kanza, Gilberto Koel, Hieu Neven, Kazuhiko Saini).",
         "group": "COQUI CONFIGURATION (Offline AI TTS)"
     },
     {

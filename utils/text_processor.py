@@ -29,7 +29,7 @@ def chunk_text(text: str, max_chunk_size: int) -> List[str]:
         if sentence == "":
             continue
 
-        # Determine if we need a separator + adding new sentence
+        # Determine if we need a separator + adding a new sentence
         candidate = (" " if current_chunk else "") + sentence
 
         if len(current_chunk) + len(candidate) <= max_chunk_size:
