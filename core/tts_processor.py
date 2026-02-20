@@ -14,13 +14,13 @@ def start_processing(file_path: str, tts_engine: BaseTTSEngine, args: argparse.N
     Decides whether to run Live Reading or Audiobook Export based on arguments
     and delegates execution to the appropriate function.
     """
-    if args.OUTPUT_TYPE == "FILE":
+    if args.OT == "FILE":
         # Audiobook Export Mode
-        print(f"\n--- Starting Audiobook Export (Engine: {args.TTS_ENGINE}) ---")
+        print(f"\n--- Starting Audiobook Export (Engine: {args.TE}) ---")
         export_audiobook(file_path, tts_engine, args)
     else:
         # Live Reading Mode
-        print(f"\n--- Starting Live Reading (Engine: {args.TTS_ENGINE}) ---")
+        print(f"\n--- Starting Live Reading (Engine: {args.TE}) ---")
         process_reading(file_path, tts_engine, args)
 
 def process_reading(file_path: str, engine: BaseTTSEngine, args: argparse.Namespace):
@@ -31,7 +31,7 @@ def process_reading(file_path: str, engine: BaseTTSEngine, args: argparse.Namesp
         print(f"Error reading source file {file_path}: {e}")
         sys.exit(1)
 
-    chunks = chunk_text(full_text, args.CHUNK_SIZE, chunk_by_paragraph=args.CHUNK_BY_PARAGRAPH)
+    chunks = chunk_text(full_text, args.CS, chunk_by_paragraph=args.CP)
     is_offline_engine = isinstance(engine, OfflineTTSEngine)
 
     for chunk in tqdm.tqdm(chunks, desc="Reading Progress"):
@@ -74,11 +74,11 @@ def export_audiobook(file_path: str, tts_engine: BaseTTSEngine, args: argparse.N
         print(f"Error reading source file {file_path}: {e}")
         sys.exit(1)
 
-    # Note: Use manager.current_args['CHUNK_SIZE'] which might be restored from .progress
+    # Note: Use manager.current_args['CS'] which might be restored from .progress
     all_chunks = chunk_text(
         full_text, 
-        manager.current_args['CHUNK_SIZE'],
-        chunk_by_paragraph=manager.current_args.get('CHUNK_BY_PARAGRAPH', False)
+        manager.current_args['CS'],
+        chunk_by_paragraph=manager.current_args.get('CP', False)
     )
     total_chunks = len(all_chunks)
 
@@ -95,7 +95,7 @@ def export_audiobook(file_path: str, tts_engine: BaseTTSEngine, args: argparse.N
         f"Total chunks: {total_chunks}. Starting from chunk index {start_chunk_index} for file {current_mp3_index:02d}.")
 
     # MAIN EXPORT LOOP
-    max_duration_ms = manager.current_args['MAX_FILE_DURATION'] * 1000
+    max_duration_ms = manager.current_args['MFD'] * 1000
     chunks_to_process = all_chunks[start_chunk_index:]
     current_segment_audio = AudioSegment.empty()
     last_processed_chunk_index = start_chunk_index - 1

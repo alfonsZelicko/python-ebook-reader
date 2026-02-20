@@ -93,7 +93,7 @@ The Coqui XTTS engine requires loading speaker voice profiles.
 
 ```bash
 # Available voices for your model you can get by typping (not every model has more)
-python tts_reader.py --coqui-speaker-name HELP
+python tts_reader.py --c-speaker HELP
 ```
 
 ### B) Google Cloud TTS (WaveNet)
@@ -140,7 +140,7 @@ python tts_reader.py
 ### 2. Reading with Overrides (Specific Engine)
 
 ```bash
-python tts_reader.py --tts-engine OFFLINE --speaking-rate 1.25 ./path/to/my_book.txt
+python tts_reader.py --te OFFLINE --sr 1.25 ./path/to/my_book.txt
 ```
 
 ### 3. Audiobook Export Mode
@@ -149,11 +149,11 @@ Exports segmented MP3 files instead of real-time playback.
 The optional value defines the **maximum segment length in seconds**.
 
 If the export process is interrupted (e.g., due to loss of internet connection, insufficient disk space, exhausted cloud TTS credits, or unexpected termination), the script will **automatically attempt to resume from the last successfully completed MP3 segment**.  
-Resumption is based strictly on the **input source file** and the presence of the `--output-file` flag. All other parameters — **including the original `--output-file` duration value** — are automatically restored from the unfinished export state.
+Resumption is based strictly on the **input source file** and the presence of the `--ot FILE` flag. All other parameters — **including the original `--mfd` duration value** — are automatically restored from the unfinished export state.
 
 ```bash
 # Export with max 600-second segments
-python tts_reader.py --tts-engine G_CLOUD --output-file 600 ./long_novel.txt
+python tts_reader.py --te G_CLOUD --ot FILE --mfd 600 ./long_novel.txt
 ```
 
 This will initiate a process that creates a directory named _long_novel_ and generates 600-second audio segments named _XX_long_novel.mp3_.
@@ -180,7 +180,7 @@ This creates `.env.translator` with all available parameters. **Important:** Add
 **For OpenAI (default):**
 
 ```bash
-OPENAI_API_KEY=your_api_key_here
+O_KEY=your_api_key_here
 ```
 
 Get your API key at: https://platform.openai.com/api-keys
@@ -188,8 +188,8 @@ Get your API key at: https://platform.openai.com/api-keys
 **For Google Gemini:**
 
 ```bash
-TRANSLATION_ENGINE=GEMINI
-G_CLOUD_CREDENTIALS=./google-key.json
+TE=GEMINI
+G_CRED=./google-key.json
 ```
 
 Uses your existing Google Cloud credentials (same as TTS G_CLOUD engine)
@@ -197,8 +197,8 @@ Uses your existing Google Cloud credentials (same as TTS G_CLOUD engine)
 **For DeepL:**
 
 ```bash
-TRANSLATION_ENGINE=DEEPL
-DEEPL_API_KEY=your_deepl_api_key_here
+TE=DEEPL
+D_KEY=your_deepl_api_key_here
 ```
 
 Get your API key at: https://www.deepl.com/pro-api
@@ -219,19 +219,19 @@ python ai_translator.py
 
 ```bash
 # Use Google Gemini
-python ai_translator.py --translation-engine GEMINI ./document.txt
+python ai_translator.py --te GEMINI ./document.txt
 
 # Use DeepL
-python ai_translator.py --translation-engine DEEPL ./document.txt
+python ai_translator.py --te DEEPL ./document.txt
 
 # Use OpenAI (default)
-python ai_translator.py --translation-engine OPENAI ./document.txt
+python ai_translator.py --te OPENAI ./document.txt
 ```
 
 ### 4. Custom Language Pair
 
 ```bash
-python ai_translator.py --source-language en --target-language de ./document.txt
+python ai_translator.py --sl en --tl de ./document.txt
 ```
 
 ### 5. Custom Translation Prompt (OpenAI & Gemini only)
@@ -240,13 +240,13 @@ Tailor the translation style for different content types:
 
 ```bash
 # For technical documentation
-python ai_translator.py --translation-prompt "You are a technical translator. Translate accurately while preserving technical terms." ./technical_doc.txt
+python ai_translator.py --tp "You are a technical translator. Translate accurately while preserving technical terms." ./technical_doc.txt
 
 # For literary works
-python ai_translator.py --translation-prompt "You are a literary translator. Preserve the author's style and tone." ./novel.txt
+python ai_translator.py --tp "You are a literary translator. Preserve the author's style and tone." ./novel.txt
 ```
 
-**Note:** DeepL does not support custom prompts. If you provide `--translation-prompt` with DeepL engine, you'll see a warning and the prompt will be ignored.
+**Note:** DeepL does not support custom prompts. If you provide `--tp` with DeepL engine, you'll see a warning and the prompt will be ignored.
 
 ### 6. Adjust Chunk Size
 
@@ -272,26 +272,27 @@ python ai_translator.py ./document.txt
 To restart translation from the beginning (discarding progress):
 
 ```bash
-python ai_translator.py --clean-output-directory ./document.txt
+python ai_translator.py --cod ./document.txt
 ```
 
 ### AI Translator Configuration Parameters
 
-| CLI Flag                   | ENV Key                      | Description                                                                  | Default Value                                                                                |
-| :------------------------- | :--------------------------- | :--------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------- |
-| `--translation-engine`     | **`TRANSLATION_ENGINE`**     | Translation engine to use. Choices: `OPENAI`, `GEMINI`, `DEEPL`              | `OPENAI`                                                                                     |
-| `--source-language`        | **`SOURCE_LANGUAGE`**        | Source language code (ISO 639-1, e.g., en, cs, de)                           | `en`                                                                                         |
-| `--target-language`        | **`TARGET_LANGUAGE`**        | Target language code (ISO 639-1, e.g., en, cs, de)                           | `cs`                                                                                         |
-| `--translation-prompt`     | **`TRANSLATION_PROMPT`**     | Custom prompt to guide AI translation (OpenAI/Gemini only, ignored by DeepL) | `You are a professional book translator. Translate the following fantasy text accurately...` |
-| `--chunk-size`             | **`CHUNK_SIZE`**             | Maximum characters per chunk for translation                                 | `2000`                                                                                       |
-| `--openai-api-key`         | **`OPENAI_API_KEY`**         | OpenAI API key (required for OPENAI engine)                                  | `""`                                                                                         |
-| `--openai-model`           | **`OPENAI_MODEL`**           | OpenAI model to use (e.g., gpt-4o-mini, gpt-4o)                              | `gpt-4o-mini`                                                                                |
-| `--g-cloud-credentials`    | **`G_CLOUD_CREDENTIALS`**    | Path to Google Cloud JSON key file (required for GEMINI engine)              | `./google-key.json`                                                                          |
-| `--gemini-model`           | **`GEMINI_MODEL`**           | Gemini model to use (e.g., gemini-pro, gemini-1.5-pro)                       | `gemini-pro`                                                                                 |
-| `--deepl-api-key`          | **`DEEPL_API_KEY`**          | DeepL API key (required for DEEPL engine)                                    | `""`                                                                                         |
-| `--max-retries`            | **`MAX_RETRIES`**            | Maximum number of retries for failed API calls                               | `3`                                                                                          |
-| `--retry-delay`            | **`RETRY_DELAY`**            | Initial delay in seconds between retries (exponential backoff)               | `1.0`                                                                                        |
-| `--clean-output-directory` | **`CLEAN_OUTPUT_DIRECTORY`** | Remove existing output directory before starting                             | `False`                                                                                      |
+| CLI Flag    | ENV Key       | Description                                                                  | Default Value                                                                                |
+| :---------- | :------------ | :--------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------- |
+| `--te`      | **`TE`**      | Translation engine to use. Choices: `OPENAI`, `GEMINI`, `DEEPL`              | `OPENAI`                                                                                     |
+| `--sl`      | **`SL`**      | Source language code (ISO 639-1, e.g., en, cs, de)                           | `en`                                                                                         |
+| `--tl`      | **`TL`**      | Target language code (ISO 639-1, e.g., en, cs, de)                           | `cs`                                                                                         |
+| `--tp`      | **`TP`**      | Custom prompt to guide AI translation (OpenAI/Gemini only, ignored by DeepL) | `You are a professional book translator. Translate the following fantasy text accurately...` |
+| `--cs`      | **`CS`**      | Maximum characters per chunk for translation                                 | `4000`                                                                                       |
+| `--cp`      | **`CP`**      | Preserve paragraph boundaries when chunking                                  | `True`                                                                                       |
+| `--o-key`   | **`O_KEY`**   | OpenAI API key (required for OPENAI engine)                                  | `""`                                                                                         |
+| `--o-model` | **`O_MODEL`** | OpenAI model to use (e.g., gpt-4o-mini, gpt-4o)                              | `gpt-4o-mini`                                                                                |
+| `--g-cred`  | **`G_CRED`**  | Path to Google Cloud JSON key file (required for GEMINI engine)              | `./google-key.json`                                                                          |
+| `--g-model` | **`G_MODEL`** | Gemini model to use (e.g., gemini-pro, gemini-1.5-pro)                       | `gemini-pro`                                                                                 |
+| `--d-key`   | **`D_KEY`**   | DeepL API key (required for DEEPL engine)                                    | `""`                                                                                         |
+| `--mr`      | **`MR`**      | Maximum number of retries for failed API calls                               | `3`                                                                                          |
+| `--rd`      | **`RD`**      | Initial delay in seconds between retries (exponential backoff)               | `1.0`                                                                                        |
+| `--cod`     | **`COD`**     | Remove existing output directory before starting                             | `False`                                                                                      |
 
 > The translator uses `.env.translator` for configuration, separate from the TTS reader's `.env.tts` file.
 
@@ -305,24 +306,27 @@ python ai_translator.py --clean-output-directory ./document.txt
 
 ## ⚙️ TTS Configuration Parameters and Description
 
-This table lists all available configuration parameters, which can be set in your **`.env` file`** or overridden by the corresponding **Command-Line Interface (CLI) flag**.
+This table lists all available configuration parameters, which can be set in your **`.env.tts` file** or overridden by the corresponding **Command-Line Interface (CLI) flag**.
 
-| CLI Flag                | ENV Key (`dest`)          | Description                                                                                          | Default Value           |
-| :---------------------- | :------------------------ | :--------------------------------------------------------------------------------------------------- | :---------------------- |
-| `--tts-engine`          | **`TTS_ENGINE`**          | Sets the TTS engine to use. Choices: `OFFLINE`, `ONLINE`, `G_CLOUD`, `COQUI`.                        | `ONLINE`                |
-| `--chunk-size`          | **`CHUNK_SIZE`**          | The maximum number of characters per text segment for TTS processing.                                | `3500`                  |
-| `--speaking-rate`       | **`SPEAKING_RATE`**       | The speech rate multiplier (1.0 is normal speed).                                                    | `1.1`                   |
-| `--offline-voice-id`    | **`OFFLINE_VOICE_ID`**    | ID or Name of the voice for the OFFLINE engine (e.g., `Microsoft Jakub` or `HELP`).                  | `""`                    |
-| `--language-code`       | **`LANGUAGE_CODE`**       | IETF BCP 47 language code for G_CLOUD/gTTS (e.g., cs-CZ).                                            | `cs-CZ`                 |
-| `--g-cloud-credentials` | **`G_CLOUD_CREDENTIALS`** | Path to the Google Cloud service account JSON key file.                                              | `./google-key.json`     |
-| `--wavenet-voice`       | **`WAVENET_VOICE`**       | Name of the G_CLOUD voice (WaveNet/Studio) to use. (choose `HELP` for available options)             | `cs-CZ-Wavenet-B`       |
-| `--output-type `        | **`OUTPUT_TYPE`**         | Sets the output - reading or creating audio files. Choices: `FILE`, `AUDIO`                          | `AUDIO`                 |
-| `--max-file-duration `  | **`MAX_FILE_DURATION`**   | Max. audio duration {in sec} per MP3 segment. Exceeding this limit automatically creates a new file. | `600`                   |
-| `--coqui-model-name`    | **`COQUI_MODEL_NAME`**    | COQUI model path/name (e.g., `tts_models/cs/cv/vits`).                                               | `tts_models/cs/cv/vits` |
-| `--coqui-speaker-name`  | **`COQUI_SPEAKER_NAME`**  | Speaker ID for COQUI multi-speaker models. (choose `HELP` for available options)                     | `""`                    |
-| `--coqui-sample-rate`   | **`COQUI_SAMPLE_RATE`**   | Sample rate for exported COQUI audio.                                                                | `22050`                 |
+| CLI Flag      | ENV Key         | Description                                                                                          | Default Value                                   |
+| :------------ | :-------------- | :--------------------------------------------------------------------------------------------------- | :---------------------------------------------- |
+| `--te`        | **`TE`**        | Sets the TTS engine to use. Choices: `OFFLINE`, `ONLINE`, `G_CLOUD`, `COQUI`.                        | `ONLINE`                                        |
+| `--cs`        | **`CS`**        | The maximum number of characters per text segment for TTS processing.                                | `3500`                                          |
+| `--cp`        | **`CP`**        | Preserve paragraph boundaries when chunking.                                                         | `False`                                         |
+| `--sr`        | **`SR`**        | The speech rate multiplier (1.0 is normal speed).                                                    | `1.1`                                           |
+| `--ot`        | **`OT`**        | Sets the output - reading or creating audio files. Choices: `FILE`, `AUDIO`                          | `AUDIO`                                         |
+| `--mfd`       | **`MFD`**       | Max. audio duration {in sec} per MP3 segment. Exceeding this limit automatically creates a new file. | `600`                                           |
+| `--cod`       | **`COD`**       | Remove existing output directory before starting                                                     | `False`                                         |
+| `--off-voice` | **`OFF_VOICE`** | ID or Name of the voice for the OFFLINE engine (e.g., `Microsoft Jakub` or `HELP`).                  | `""`                                            |
+| `--l-code`    | **`L_CODE`**    | IETF BCP 47 language code for G_CLOUD/gTTS (e.g., cs-CZ).                                            | `cs-CZ`                                         |
+| `--g-cred`    | **`G_CRED`**    | Path to the Google Cloud service account JSON key file.                                              | `./google-key.json`                             |
+| `--g-voice`   | **`G_VOICE`**   | Name of the G_CLOUD voice (WaveNet/Studio) to use. (choose `HELP` for available options)             | `cs-CZ-Standard-B`                              |
+| `--c-model`   | **`C_MODEL`**   | COQUI model path/name (e.g., `tts_models/cs/cv/vits`).                                               | `tts_models/multilingual/multi-dataset/xtts_v2` |
+| `--c-speaker` | **`C_SPEAKER`** | Speaker ID for COQUI multi-speaker models. (choose `HELP` for available options)                     | `""`                                            |
+| `--c-wav`     | **`C_WAV`**     | Path to a WAV file for custom speaker cloning.                                                       | `""`                                            |
+| `--c-rate`    | **`C_RATE`**    | Sample rate for exported COQUI audio.                                                                | `22050`                                         |
 
-> Parameters are defined in the `config_definitions.py` file, which serves as the single source of truth (SSOT). All other scripts (`args_manager.py`, `env_generator.py`) operate exclusively on parameters generated from this file.
+> Parameters are defined in the `tts_args_definition.py` and `translator_args_definition.py` files, which serve as the single source of truth (SSOT). All other scripts (`args_manager.py`, `env_generator.py`) operate exclusively on parameters generated from these files.
 
 ---
 
@@ -396,12 +400,10 @@ The following priorities outline the development path for enhancing the platform
 
 - **Version Control & Release Management**
   ✓ Implementation of **Semantic Versioning** (e.g., `v1.0.0`) for stable release tracking
-
   - Development of an **Automated Release Pipeline** using CI/CD to generate standalone executables via **PyInstaller**
   - Primary targets: **Windows & Linux**
 
 - **Critical Platform Independence** ✅
-
   - Conditional loading of OS-specific dependencies (e.g., `pywin32` for Windows)
   - Ensuring clean, isolated environments for **Linux and macOS** without redundant Windows-specific packages
 
@@ -414,7 +416,6 @@ The following priorities outline the development path for enhancing the platform
 ### 🎙️ Advanced TTS & Voice Synthesis
 
 - **Offline COQUI TTS Integration** (Experimental)
-
   - Enabling high-quality, local AI voice synthesis to eliminate cloud dependency
   - **Current Status:** Experimental support is functional but exhibits Czech accent artifacts. Compatibility issues between `XTTS-v2` and specific `torch`/CUDA versions are currently blocking stable release. Development is paused pending upstream fixes
 
@@ -428,7 +429,6 @@ The following priorities outline the development path for enhancing the platform
 ### 🤖 AI-Driven Translation & Linguistics
 
 - **Intelligent Text Translation Workflow**
-
   - Multi-stage pipeline: **Source Text → AI Translation → Audio Generation**
   - **Context-Aware Translation:** Behavior is governed by specialized prompts (e.g., _"Translate as a professional fantasy novelist"_)
   - **Prompt Inference:** System can manually or automatically infer the best translation style based on metadata like title or genre

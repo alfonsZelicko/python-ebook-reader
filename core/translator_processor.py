@@ -67,11 +67,11 @@ def start_translation(file_path: str, translation_engine: BaseTranslationEngine,
             print(f"Resuming from chunk {start_chunk_index} ({len(translated_chunks)} chunks already translated)")
 
     # 4. SPLIT TEXT INTO CHUNKS
-    chunks = chunk_text(input_text, args.CHUNK_SIZE, chunk_by_paragraph=args.CHUNK_BY_PARAGRAPH)
+    chunks = chunk_text(input_text, args.CS, chunk_by_paragraph=args.CP)
     total_chunks = len(chunks)
     
-    chunk_mode = "paragraph-aware" if args.CHUNK_BY_PARAGRAPH else "sentence-based"
-    print(f"Text split into {total_chunks} chunks ({chunk_mode}, max {args.CHUNK_SIZE} characters each)\n")
+    chunk_mode = "paragraph-aware" if args.CP else "sentence-based"
+    print(f"Text split into {total_chunks} chunks ({chunk_mode}, max {args.CS} characters each)\n")
 
     # 5. TRANSLATE EACH CHUNK
     for i in range(start_chunk_index, total_chunks):

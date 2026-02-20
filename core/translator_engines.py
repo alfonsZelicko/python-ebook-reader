@@ -30,13 +30,13 @@ class OpenAITranslationEngine(BaseTranslationEngine):
     """Translation engine using OpenAI's GPT models."""
     
     def __init__(self, args: argparse.Namespace):
-        super().__init__(args.SOURCE_LANGUAGE, args.TARGET_LANGUAGE)
+        super().__init__(args.SL, args.TL)
         
         # Validate API key
-        api_key = args.OPENAI_API_KEY
+        api_key = args.O_KEY
         if not api_key:
-            print("\nERROR: OPENAI_API_KEY not found in environment variables.")
-            print("FIX: Please set OPENAI_API_KEY in your .env.translator file or pass it via --openai-api-key")
+            print("\nERROR: O_KEY not found in environment variables.")
+            print("FIX: Please set O_KEY in your .env.translator file or pass it via --o-key")
             print("HINT: Get your API key at: https://platform.openai.com/api-keys")
             sys.exit(1)
 
@@ -50,10 +50,10 @@ class OpenAITranslationEngine(BaseTranslationEngine):
         self.client = OpenAI(api_key=api_key)
         
         # Store configuration
-        self.model = args.OPENAI_MODEL
-        self.translation_prompt = args.TRANSLATION_PROMPT
-        self.max_retries = args.MAX_RETRIES
-        self.retry_delay = args.RETRY_DELAY
+        self.model = args.O_MODEL
+        self.translation_prompt = args.TP
+        self.max_retries = args.MR
+        self.retry_delay = args.RD
         
         print(f"OpenAI Translation Engine initialized:")
         print(f"  Model: {self.model}")
@@ -127,10 +127,10 @@ class GeminiTranslationEngine(BaseTranslationEngine):
     """Translation engine using Google's Gemini AI."""
     
     def __init__(self, args: argparse.Namespace):
-        super().__init__(args.SOURCE_LANGUAGE, args.TARGET_LANGUAGE)
+        super().__init__(args.SL, args.TL)
         
         # Validate credentials
-        credentials_path = args.G_CLOUD_CREDENTIALS
+        credentials_path = args.G_CRED
         if not os.path.exists(credentials_path):
             print(f"\nERROR: Google Cloud credentials file not found: {credentials_path}")
             print("Please ensure your google-key.json file exists and the path is correct.")
@@ -150,10 +150,10 @@ class GeminiTranslationEngine(BaseTranslationEngine):
         genai.configure()
         
         # Store configuration
-        self.model_name = args.GEMINI_MODEL
-        self.translation_prompt = args.TRANSLATION_PROMPT
-        self.max_retries = args.MAX_RETRIES
-        self.retry_delay = args.RETRY_DELAY
+        self.model_name = args.G_MODEL
+        self.translation_prompt = args.TP
+        self.max_retries = args.MR
+        self.retry_delay = args.RD
         
         # Initialize model
         self.model = genai.GenerativeModel(self.model_name)
@@ -220,13 +220,13 @@ class DeepLTranslationEngine(BaseTranslationEngine):
     """Translation engine using DeepL API."""
     
     def __init__(self, args: argparse.Namespace):
-        super().__init__(args.SOURCE_LANGUAGE, args.TARGET_LANGUAGE)
+        super().__init__(args.SL, args.TL)
         
         # Validate API key
-        api_key = args.DEEPL_API_KEY
+        api_key = args.D_KEY
         if not api_key:
-            print("\nERROR: DEEPL_API_KEY not found in environment variables.")
-            print("Please set DEEPL_API_KEY in your .env.translator file or pass it via --deepl-api-key")
+            print("\nERROR: D_KEY not found in environment variables.")
+            print("Please set D_KEY in your .env.translator file or pass it via --d-key")
             print("Get your API key at: https://www.deepl.com/pro-api")
             sys.exit(1)
         
@@ -242,20 +242,20 @@ class DeepLTranslationEngine(BaseTranslationEngine):
         self.translator = deepl.Translator(api_key)
         
         # Store configuration
-        self.max_retries = args.MAX_RETRIES
-        self.retry_delay = args.RETRY_DELAY
+        self.max_retries = args.MR
+        self.retry_delay = args.RD
         
         print(f"DeepL Translation Engine initialized:")
         print(f"  Translation: {self.source_language} → {self.target_language}")
         print(f"  Max retries: {self.max_retries}")
         
         # Check if custom prompt was provided (DeepL doesn't support it)
-        if hasattr(args, 'TRANSLATION_PROMPT') and args.TRANSLATION_PROMPT != "":
+        if hasattr(args, 'TP') and args.TP != "":
             # Check if it was provided via CLI (not just from .env)
             import sys
-            if '--translation-prompt' in sys.argv:
+            if '--tp' in sys.argv:
                 print("\n⚠️  WARNING: DeepL does not support custom translation prompts.")
-                print("   The --translation-prompt parameter will be ignored.")
+                print("   The --tp parameter will be ignored.")
     
     def translate_chunk(self, chunk: str, chunk_index: int = 0) -> str:
         """Translates a chunk using DeepL API with retry logic."""
@@ -314,7 +314,7 @@ class DeepLTranslationEngine(BaseTranslationEngine):
 def initialize_translation_engine(args: argparse.Namespace) -> BaseTranslationEngine:
     """Initializes and returns the appropriate translation engine based on arguments."""
     
-    engine_choice = args.TRANSLATION_ENGINE.upper()
+    engine_choice = args.TE.upper()
     
     try:
         if engine_choice == "OPENAI":

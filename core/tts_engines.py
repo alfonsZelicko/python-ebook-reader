@@ -111,7 +111,7 @@ class GoogleCloudTTSEngine(BaseTTSEngine):
             sys.exit(1)
 
         if not voice_id or not credentials_path:
-            raise ValueError("WAVENET_VOICE and G_CLOUD_CREDENTIALS must be set.")
+            raise ValueError("G_VOICE and G_CRED must be set.")
         if not os.path.exists(credentials_path):
             raise FileNotFoundError(f"Google Cloud key file not found at: {credentials_path}")
 
@@ -218,32 +218,32 @@ class CoquiTTSEngine(BaseTTSEngine):
             raise
 
 def initialize_tts_engine(args: argparse.Namespace):
-    engine_choice = args.TTS_ENGINE.upper()
+    engine_choice = args.TE.upper()
     try:
         if engine_choice == "OFFLINE":
             return OfflineTTSEngine(
-                args.SPEAKING_RATE, 
-                args.OFFLINE_VOICE_ID
+                args.SR, 
+                args.OFF_VOICE
                 )
         elif engine_choice == "ONLINE":
             return OnlineTTSEngine(
-                args.SPEAKING_RATE, 
-                args.LANGUAGE_CODE
+                args.SR, 
+                args.L_CODE
                 )
         elif engine_choice == "G_CLOUD":
             return GoogleCloudTTSEngine(
-                args.SPEAKING_RATE, 
-                args.G_CLOUD_CREDENTIALS, 
-                args.WAVENET_VOICE, 
-                args.LANGUAGE_CODE
+                args.SR, 
+                args.G_CRED, 
+                args.G_VOICE, 
+                args.L_CODE
                 )
         if engine_choice == "COQUI":
             return CoquiTTSEngine(
-                args.SPEAKING_RATE, 
-                args.COQUI_MODEL_NAME, 
-                args.COQUI_SPEAKER_NAME, 
-                args.COQUI_SPEAKER_WAV,
-                args.LANGUAGE_CODE
+                args.SR, 
+                args.C_MODEL, 
+                args.C_SPEAKER, 
+                args.C_WAV,
+                args.L_CODE
                 )
         else:
             raise ValueError(f"Unknown engine: {engine_choice}")

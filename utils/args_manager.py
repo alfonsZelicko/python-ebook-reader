@@ -111,51 +111,51 @@ def parse_arguments(mode="TTS") -> argparse.Namespace:
 def _validate_tts(args: argparse.Namespace):
     """Internal validator for TTS-specific logic and utility actions."""
     # Logic for voice listing (HELP trigger)
-    is_offline_help = (args.TTS_ENGINE == "OFFLINE" and 
-                       getattr(args, 'OFFLINE_VOICE_ID', '').upper() == "HELP")
+    is_offline_help = (args.TE == "OFFLINE" and 
+                       getattr(args, 'OFF_VOICE', '').upper() == "HELP")
     
-    is_coqui_help = (args.TTS_ENGINE == "COQUI" and 
-                     getattr(args, 'COQUI_SPEAKER_NAME', '').upper() == "HELP")
+    is_coqui_help = (args.TE == "COQUI" and 
+                     getattr(args, 'C_SPEAKER', '').upper() == "HELP")
 
-    is_google_help = (args.TTS_ENGINE == "G_CLOUD" and 
-                     getattr(args, 'WAVENET_VOICE', '').upper() == "HELP")
+    is_google_help = (args.TE == "G_CLOUD" and 
+                     getattr(args, 'G_VOICE', '').upper() == "HELP")
 
     if is_offline_help or is_coqui_help or is_google_help:
         list_available_voices(args)
-        print(f"\n✅ Success: Available {args.TTS_ENGINE} voices listed above.")
+        print(f"\n✅ Success: Available {args.TE} voices listed above.")
         sys.exit(0)
 
     # Logic for engine compatibility
-    if args.OUTPUT_TYPE == "FILE" and args.TTS_ENGINE == "OFFLINE":
+    if args.OT == "FILE" and args.TE == "OFFLINE":
         print("\nERROR: Configuration Incompatibility.")
         print("The OFFLINE engine (SAPI/pyttsx3) is currently not compatible with FILE output type.")
         sys.exit(1)
 
     # Logic for COQUI path validation
-    if args.TTS_ENGINE == "COQUI" and args.COQUI_SPEAKER_WAV:
-        if not os.path.exists(args.COQUI_SPEAKER_WAV):
-            print(f"\nERROR: The file specified for --coqui-speaker-wav was not found.")
-            print(f"Path: {args.COQUI_SPEAKER_WAV}")
+    if args.TE == "COQUI" and args.C_WAV:
+        if not os.path.exists(args.C_WAV):
+            print(f"\nERROR: The file specified for --c-wav was not found.")
+            print(f"Path: {args.C_WAV}")
             sys.exit(1)
 
 
 def _validate_translator(args: argparse.Namespace):
     """Internal validator for Translator-specific logic."""
-    engine = args.TRANSLATION_ENGINE.upper()
+    engine = args.TE.upper()
 
     if engine == "OFFLINE":
         print("\nERROR: Offline engine is currently not supported (it reads, not providing audio data stream.")
         sys.exit(1)
     
-    if engine == "OPENAI" and not args.OPENAI_API_KEY:
-        print("\nERROR: OPENAI_API_KEY not found.")
+    if engine == "OPENAI" and not args.O_KEY:
+        print("\nERROR: O_KEY not found.")
         sys.exit(1)
     
-    if engine == "GEMINI" and not os.path.exists(args.G_CLOUD_CREDENTIALS):
+    if engine == "GEMINI" and not os.path.exists(args.G_CRED):
         print(f"\nERROR: Google Cloud credentials file not found.")
         sys.exit(1)
     
-    if args.CHUNK_SIZE <= 0:
+    if args.CS <= 0:
         print(f"\nERROR: Chunk size must be a positive integer.")
         sys.exit(1)
 

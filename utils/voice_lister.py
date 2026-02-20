@@ -50,12 +50,12 @@ def list_coqui_voices(model_name: str):
 
 def list_available_voices(args):
     """Router function to call the specific voice lister based on the engine."""
-    engine_choice = args.TTS_ENGINE.upper()
+    engine_choice = args.TE.upper()
 
     if engine_choice == "OFFLINE":
         list_offline_voices()
     elif engine_choice == "COQUI":
-        model_name = getattr(args, 'COQUI_MODEL_NAME', 'tts_models/multilingual/multi-dataset/xtts_v2')
+        model_name = getattr(args, 'C_MODEL', 'tts_models/multilingual/multi-dataset/xtts_v2')
         list_coqui_voices(model_name)
     elif engine_choice == "G_CLOUD":
         print("\n--- GOOGLE CLOUD TTS Voices ---")

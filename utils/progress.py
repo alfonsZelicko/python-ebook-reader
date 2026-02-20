@@ -24,7 +24,7 @@ class ProgressManager:
         self.state: Dict[str, Any] = {}
 
         # 2. PERFORM CLEANUP IF REQUESTED (Destructive action)
-        if args.CLEAN_OUTPUT_DIRECTORY:
+        if args.COD:
             if os.path.exists(self.output_dir):
                 shutil.rmtree(self.output_dir)
                 print(f"[CLEAN] Deleted old output directory: {self.output_dir}")
