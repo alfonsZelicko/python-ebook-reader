@@ -3,7 +3,14 @@
 A highly modular **Python-based toolkit** featuring:
 
 - **TTS Reader**: Text-to-Speech tool for processing large text files using both **offline and online engines**, with full support for **high-quality cloud services** and **audiobook generation**
-- **AI Translator**: OpenAI-powered text translator with chunking support, progress tracking, and resumable translations
+- **[BETA] AI Translator**: OpenAI-powered text translator with chunking support, progress tracking, and resumable translations
+  - I have a few issues here:
+    - chunking -> it is very hard to make a proper chunking algorithm due to proper "paragraph" detection. I have some work-around solution: "chunking by paragraph" but still some problems occur... I will solve them in the future.
+    - the main functionality is to not ONLY translate but transpile text for AI reading -> I already have some POC's, but at this moment I have no time to move on.
+- **My current focus** is to build some semmy heavy server to orchestrate tts_reader and translator into one tool and provide some nice graphQl API to interact with it... and create some lightweight React frontend to interact with it. 
+- ... another **current focus** is to implement a new tts engine to support this: https://elevenlabs.io/
+
+> Jesus - in the beginning it was just a simple idea to make automatet translations for books - for ONE BOOK which I wanted to read in CZ, even when I am able to read it in ENG... \*FACEPALM\*
 
 ---
 
