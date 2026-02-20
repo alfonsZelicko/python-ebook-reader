@@ -26,6 +26,13 @@ TTS_CONFIG_DEFS = [
         "group": "CORE CONFIGURATION & CONTROL"
     },
     {
+        "key": "CHUNK_BY_PARAGRAPH",
+        "default": False,
+        "action": "store_true",
+        "help_text": "Preserve paragraph boundaries when chunking.",
+        "group": "CORE CONFIGURATION & CONTROL"
+    },
+    {
         "key": "SPEAKING_RATE",
         "default": 1.1,
         "type": float,

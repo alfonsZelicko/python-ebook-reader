@@ -43,9 +43,16 @@ TRANSLATOR_CONFIG_DEFS = [
     },
     {
         "key": "CHUNK_SIZE",
-        "default": 2000,
+        "default": 4000,
         "type": int,
         "help_text": "Maximum number of characters per chunk for translation.",
+        "group": "CORE TRANSLATION CONFIGURATION"
+    },
+    {
+        "key": "CHUNK_BY_PARAGRAPH",
+        "default": True,
+        "action": "store_true",
+        "help_text": "Preserve paragraph boundaries when chunking (recommended for translations).",
         "group": "CORE TRANSLATION CONFIGURATION"
     },
 

@@ -145,8 +145,15 @@ celerybeat.pid
 
 # Sensitive files
 google-key.json
+
+# Testing files
 test.txt
 test_en.txt
+sample.wav
+cz_sample.wav
+record.wav
+/test_en
+/test
 
 # Spyder project settings
 .spyderproject

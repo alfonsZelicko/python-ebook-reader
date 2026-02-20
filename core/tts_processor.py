@@ -31,7 +31,7 @@ def process_reading(file_path: str, engine: BaseTTSEngine, args: argparse.Namesp
         print(f"Error reading source file {file_path}: {e}")
         sys.exit(1)
 
-    chunks = chunk_text(full_text, args.CHUNK_SIZE)
+    chunks = chunk_text(full_text, args.CHUNK_SIZE, chunk_by_paragraph=args.CHUNK_BY_PARAGRAPH)
     is_offline_engine = isinstance(engine, OfflineTTSEngine)
 
     for chunk in tqdm.tqdm(chunks, desc="Reading Progress"):
@@ -75,7 +75,11 @@ def export_audiobook(file_path: str, tts_engine: BaseTTSEngine, args: argparse.N
         sys.exit(1)
 
     # Note: Use manager.current_args['CHUNK_SIZE'] which might be restored from .progress
-    all_chunks = chunk_text(full_text, manager.current_args['CHUNK_SIZE'])
+    all_chunks = chunk_text(
+        full_text, 
+        manager.current_args['CHUNK_SIZE'],
+        chunk_by_paragraph=manager.current_args.get('CHUNK_BY_PARAGRAPH', False)
+    )
     total_chunks = len(all_chunks)
 
     # Determine where to start reading from based on progress file
