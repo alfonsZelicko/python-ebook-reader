@@ -7,7 +7,7 @@ A highly modular **Python-based toolkit** featuring:
   - I have a few issues here:
     - chunking -> it is very hard to make a proper chunking algorithm due to proper "paragraph" detection. I have some work-around solution: "chunking by paragraph" but still some problems occur... I will solve them in the future.
     - the main functionality is to not ONLY translate but transpile text for AI reading -> I already have some POC's, but at this moment I have no time to move on.
-- **My current focus** is to build some semmy heavy server to orchestrate tts_reader and translator into one tool and provide some nice graphQl API to interact with it... and create some lightweight React frontend to interact with it. 
+- **My current focus** is to build some semmy heavy server to orchestrate tts_reader and translator into one tool and provide some nice graphQl API to interact with it... and create some lightweight React frontend to interact with it.
 - ... another **current focus** is to implement a new tts engine to support this: https://elevenlabs.io/
 
 > Jesus - in the beginning it was just a simple idea to make automatet translations for books - for ONE BOOK which I wanted to read in CZ, even when I am able to read it in ENG... \*FACEPALM\*
@@ -35,6 +35,14 @@ A highly modular **Python-based toolkit** featuring:
 - **Error Handling:** Graceful handling of rate limits and API errors
 - **Flexible Configuration:** Mode-specific `.env.translator` file with CLI override support
 - **Google Cloud Integration:** Reuses existing google-key.json for Gemini translations
+
+### GraphQL Server
+
+- **Unified API:** GraphQL server that provides a modern API interface for both TTS and Translation services
+- **Async Support:** Both synchronous and asynchronous operation modes with job tracking
+- **Dynamic Schema:** Automatically generates GraphQL schema from existing argument definitions
+- **Developer Tools:** Built-in GraphiQL playground for API exploration and testing
+- **Modular Design:** Clean separation between GraphQL layer, service layer, and business logic
 
 ---
 
@@ -308,6 +316,146 @@ python ai_translator.py --cod ./document.txt
 - **OPENAI**: Supports custom prompts, requires API key from OpenAI
 - **GEMINI**: Supports custom prompts, uses your existing Google Cloud credentials (google-key.json)
 - **DEEPL**: Does not support custom prompts (warning shown if provided via CLI), requires DeepL API key
+
+---
+
+## 🌐 GraphQL Server Usage
+
+The GraphQL server provides a unified API for both TTS and Translation services with support for synchronous and asynchronous operations.
+
+### 1. Setup
+
+First, generate the server configuration file:
+
+```bash
+python start_server.py --generate-env
+```
+
+This creates `.env.server` with all server configuration options. Review and customize as needed.
+
+### 2. Start the Server
+
+Start the server with default configuration (from `.env.server`):
+
+```bash
+python start_server.py
+```
+
+Or override host and port:
+
+```bash
+python start_server.py --host 127.0.0.1 --port 9000
+```
+
+The server will start and display:
+
+- GraphQL endpoint: `http://localhost:8000/graphql`
+- GraphiQL playground: `http://localhost:8000/graphql` (in browser)
+- Health check: `http://localhost:8000/health`
+- API docs: `http://localhost:8000/docs`
+
+### 3. Using the GraphiQL Playground
+
+Open `http://localhost:8000/graphql` in your browser to access the interactive GraphiQL playground where you can:
+
+- Explore the schema documentation
+- Write and test GraphQL queries and mutations
+- View real-time results
+
+### 4. Example GraphQL Operations
+
+**Generate Speech (Synchronous):**
+
+```graphql
+mutation {
+  generateSpeech(
+    input: {
+      textContent: "Hello, this is a test."
+      engine: ONLINE
+      languageCode: "en-US"
+    }
+  ) {
+    success
+    message
+    outputFiles
+    metadata {
+      engineUsed
+      totalChunks
+    }
+  }
+}
+```
+
+**Translate Text (Asynchronous):**
+
+```graphql
+mutation {
+  translateText(
+    input: {
+      textContent: "Hello world"
+      engine: OPENAI
+      sourceLanguage: "en"
+      targetLanguage: "cs"
+    }
+    asyncMode: true
+  ) {
+    jobId
+    status
+  }
+}
+```
+
+**Check Job Status:**
+
+```graphql
+query {
+  jobStatus(jobId: "your-job-id-here") {
+    jobId
+    status
+    progress {
+      percentage
+      currentChunk
+      totalChunks
+      stage
+    }
+    result {
+      ... on TranslationResult {
+        success
+        outputFile
+      }
+    }
+  }
+}
+```
+
+**Query Available Engines:**
+
+```graphql
+query {
+  availableEngines {
+    ttsEngines {
+      name
+      description
+    }
+    translationEngines {
+      name
+      description
+    }
+  }
+}
+```
+
+### 5. Server Configuration
+
+The `.env.server` file controls server behavior:
+
+- **SERVER_HOST**: Server host address (default: `0.0.0.0`)
+- **SERVER_PORT**: Server port (default: `8000`)
+- **LOG_LEVEL**: Logging level (default: `INFO`)
+- **ALLOWED_TTS_ENGINES**: Comma-separated list of allowed TTS engines
+- **ALLOWED_TRANSLATOR_ENGINES**: Comma-separated list of allowed translation engines
+- **MAX_CONCURRENT_JOBS**: Maximum number of concurrent async jobs
+- **MAX_UPLOAD_SIZE_MB**: Maximum file upload size in megabytes
 
 ---
 
