@@ -1,16 +1,21 @@
 # GraphQL Server for TTS & Translation Services
 
-A unified GraphQL API that provides access to Text-to-Speech (TTS) and Translation services. This server wraps existing Python scripts and exposes their functionality through a modern, type-safe GraphQL interface.
+A unified GraphQL API that provides access to Text-to-Speech (TTS) and Translation services. This server wraps existing
+Python scripts and exposes their functionality through a modern, type-safe GraphQL interface.
 
 ## Features
 
 - **Unified API**: Single GraphQL endpoint for both TTS and translation operations
-- **Multiple Engines**: Support for various TTS engines (OFFLINE, ONLINE, G_CLOUD, COQUI) and translation engines (OPENAI, GEMINI, DEEPL)
+- **Multiple Engines**: Support for various TTS engines (OFFLINE, ONLINE, G_CLOUD, COQUI) and translation engines (
+  OPENAI, GEMINI, DEEPL)
 - **Async Support**: Execute long-running operations asynchronously with progress tracking
 - **File Handling**: Upload text files for processing and download generated audio/text files
+    - not fully tested yet
 - **Dynamic Schema**: GraphQL schema automatically generated from argument definitions
 - **GraphiQL Playground**: Interactive API explorer for testing and development
+    - ... after Beta it will be removed
 - **Configurable**: Extensive configuration options via `.env.server`
+    - same logic as in tts_reader/ai_translator
 
 ## Installation
 
@@ -26,9 +31,6 @@ The server requires the following packages (already defined in `pyproject.toml`)
 ```bash
 # Install all project dependencies including server packages
 pip install -e .
-
-# Or if using poetry
-poetry install
 ```
 
 Key dependencies:
@@ -61,12 +63,15 @@ Ensure you have the existing configuration files set up:
 - `.env.tts` - TTS service configuration (API keys, credentials)
 - `.env.translator` - Translation service configuration (API keys, credentials)
 
-These files are used by the underlying TTS and translation engines.
+These files are used by the underlying TTS and translation engines. For more info read the Readme in the `tts_reader`
+and `ai_translator` directories.
 
 ### 4. Start the Server
 
 ```bash
 python -m server.main
+# or
+poe server
 ```
 
 The server will start and display:
@@ -75,6 +80,7 @@ The server will start and display:
 - GraphiQL playground: `http://localhost:8000/graphql` (open in browser)
 - Health check: `http://localhost:8000/health`
 - API docs: `http://localhost:8000/docs`
+  TODO: it will be removed after Beta
 
 ## Configuration
 
@@ -91,6 +97,8 @@ SERVER_PORT=8000
 ```
 
 ### Logging
+
+TODO: add some "automatic cleaning" for logs
 
 ```bash
 # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -112,6 +120,8 @@ MAX_UPLOAD_SIZE_MB=50
 # Directory for temporary file storage
 TEMP_DIRECTORY=./temp
 ```
+
+TODO: not fully implemented yet (with tts_reader/ai_translator scripts)
 
 ### Engine Allowlists
 
@@ -369,7 +379,7 @@ mutation {
 
 ### Using with cURL
 
-You can also interact with the API using cURL or any HTTP client:
+You can also interact with the API using cURL or any HTTP client! Here's an example of generating speech using cURL:
 
 ```bash
 # Query available engines
@@ -407,18 +417,24 @@ server/
 ├── config.py                  # Configuration management
 ├── logger.py                  # Logging setup
 ├── context.py                 # GraphQL context (for future auth)
-├── resolvers/
-│   ├── query.py              # Query resolvers
-│   └── mutation.py           # Mutation resolvers
+├── core/
+├── graphql/
+│   ├── context.py             # GraphQL context for request handling
+│   ├── schema.py              # GraphQL schema definition 4 TTS & Translation
+│   ├── schema_generator.py    # Schema Generator for GraphQL Server
+│   └── resolvers/
+│   │   ├── query.py              # Query resolvers
+│   │   └── mutation.py           # Mutation resolvers
+│   └── types/
+│       ├── inputs.py             # GraphQL input types
+│       └── outputs.py            # GraphQL output types
 ├── services/
 │   ├── tts_service.py        # TTS operations wrapper
 │   ├── translation_service.py # Translation operations wrapper
 │   └── job_manager.py        # Async job management
-├── handlers/
-│   └── file_handler.py       # File upload/download
-└── types/
-    ├── inputs.py             # GraphQL input types
-    └── outputs.py            # GraphQL output types
+└── handlers/
+    └── file_handler.py       # File upload/download
+
 ```
 
 ### How It Works
@@ -430,7 +446,8 @@ server/
 
 ## Adding New Parameters
 
-The GraphQL schema automatically stays synchronized with the underlying TTS and translation scripts. When you add a new parameter to the config definitions, it automatically appears in the GraphQL API.
+The GraphQL schema automatically stays synchronized with the underlying TTS and translation scripts. When you add a new
+parameter to the config definitions, it automatically appears in the GraphQL API.
 
 ### Step 1: Add Parameter to Config Definition
 
@@ -473,11 +490,6 @@ TRANSLATOR_CONFIG_DEFS = [
 ### Step 2: Restart the Server
 
 The schema generator reads the config definitions at startup:
-
-```bash
-python -m server.main
-```
-
 You'll see log output confirming the new parameter was added:
 
 ```
@@ -505,7 +517,7 @@ mutation {
 Python types are automatically mapped to GraphQL types:
 
 | Python Type           | GraphQL Type |
-| --------------------- | ------------ |
+|-----------------------|--------------|
 | `str`                 | `String`     |
 | `int`                 | `Int`        |
 | `float`               | `Float`      |
@@ -517,7 +529,7 @@ Python types are automatically mapped to GraphQL types:
 Short keys are converted to readable GraphQL field names:
 
 | Short Key   | Long Name            | GraphQL Field       |
-| ----------- | -------------------- | ------------------- |
+|-------------|----------------------|---------------------|
 | `TE`        | `tts_engine`         | `engine`            |
 | `CS`        | `chunk_size`         | `chunkSize`         |
 | `G_CRED`    | `google_credentials` | `googleCredentials` |
@@ -585,7 +597,11 @@ The server provides structured error responses with helpful information:
         "code": "ENGINE_NOT_ALLOWED",
         "details": {
           "provided": "COQUI",
-          "allowed": ["OFFLINE", "ONLINE", "G_CLOUD"]
+          "allowed": [
+            "OFFLINE",
+            "ONLINE",
+            "G_CLOUD"
+          ]
         }
       }
     }
@@ -632,8 +648,16 @@ Response:
     "health": "/health"
   },
   "configuration": {
-    "allowed_tts_engines": ["OFFLINE", "ONLINE", "G_CLOUD"],
-    "allowed_translator_engines": ["OPENAI", "GEMINI", "DEEPL"],
+    "allowed_tts_engines": [
+      "OFFLINE",
+      "ONLINE",
+      "G_CLOUD"
+    ],
+    "allowed_translator_engines": [
+      "OPENAI",
+      "GEMINI",
+      "DEEPL"
+    ],
     "max_concurrent_jobs": 4,
     "max_upload_size_mb": 50
   }

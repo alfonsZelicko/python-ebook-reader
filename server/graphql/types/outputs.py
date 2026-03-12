@@ -10,9 +10,7 @@ from typing import List, Optional, Union
 from enum import Enum
 
 
-# ============================================================================
-# Job Status Types
-# ============================================================================
+# =========================== Job Status Types =========================== #
 
 @strawberry.enum
 class JobStatusEnum(Enum):
@@ -43,9 +41,7 @@ class JobStatus:
     error: Optional[str] = None
 
 
-# ============================================================================
-# TTS Output Types
-# ============================================================================
+# =========================== TTS Output Types =========================== #
 
 @strawberry.type
 class TTSMetadata:
@@ -65,9 +61,7 @@ class TTSResult:
     metadata: TTSMetadata
 
 
-# ============================================================================
-# Translation Output Types
-# ============================================================================
+# =========================== Translation Output Types =========================== #
 
 @strawberry.type
 class TranslationMetadata:
@@ -88,9 +82,7 @@ class TranslationResult:
     metadata: TranslationMetadata
 
 
-# ============================================================================
-# Engine Information Types
-# ============================================================================
+# =========================== Engine Information Types =========================== #
 
 @strawberry.type
 class EngineDetail:
@@ -108,9 +100,7 @@ class EngineInfo:
     translation_engines: List[EngineDetail]
 
 
-# ============================================================================
-# File Download Types
-# ============================================================================
+# =========================== File Download Types =========================== #
 
 @strawberry.type
 class FileDownload:

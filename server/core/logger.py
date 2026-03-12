@@ -3,15 +3,15 @@ Logging setup for the GraphQL server.
 
 This module configures Python logging with console and file handlers,
 custom formatters, and request logging middleware for GraphQL operations.
-
-Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8
 """
 
 import logging
 import sys
-from typing import Optional
 from pathlib import Path
-from datetime import datetime
+from typing import Optional
+
+
+# from datetime import datetime
 
 
 class ColoredFormatter(logging.Formatter):
@@ -25,23 +25,23 @@ class ColoredFormatter(logging.Formatter):
     - ERROR: Red
     - CRITICAL: Red + Bold
     """
-    
-    # ANSI color codes
+
+    # ANSI color codes -> stolen from internet
     COLORS = {
-        'DEBUG': '\033[36m',      # Cyan
-        'INFO': '\033[32m',       # Green
-        'WARNING': '\033[33m',    # Yellow
-        'ERROR': '\033[31m',      # Red
-        'CRITICAL': '\033[1;31m', # Bold Red
+        'DEBUG': '\033[36m',  # Cyan
+        'INFO': '\033[32m',  # Green
+        'WARNING': '\033[33m',  # Yellow
+        'ERROR': '\033[31m',  # Red
+        'CRITICAL': '\033[1;31m',  # Bold Red
     }
     RESET = '\033[0m'
-    
+
     def format(self, record: logging.LogRecord) -> str:
         """
-        Format log record with color for console output.
+        It formats log message with color codes for console output.
         
         Args:
-            record: Log record to format
+            record: Log record 2 format
             
         Returns:
             Formatted log message with color codes
@@ -50,13 +50,12 @@ class ColoredFormatter(logging.Formatter):
         levelname = record.levelname
         if levelname in self.COLORS:
             record.levelname = f"{self.COLORS[levelname]}{levelname}{self.RESET}"
-        
-        # Format the message
+
         formatted = super().format(record)
-        
-        # Reset levelname for subsequent handlers
+
+        # Reset levelname for next handlers
         record.levelname = levelname
-        
+
         return formatted
 
 
@@ -75,23 +74,21 @@ def setup_logger(config) -> logging.Logger:
         
     Returns:
         Configured logger instance for the GraphQL server
-        
-    Validates: Requirements 8.1, 8.3, 8.6, 8.7, 8.8
     """
     # Create root logger for the server
     logger = logging.getLogger("graphql_server")
-    
+
     # Set log level from config
     log_level = getattr(logging, config.log_level.upper(), logging.INFO)
     logger.setLevel(log_level)
-    
+
     # Remove existing handlers to avoid duplicates
     logger.handlers.clear()
-    
+
     # Console handler with colored output
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
-    
+
     # Use colored formatter for console
     console_formatter = ColoredFormatter(
         config.log_format,
@@ -99,16 +96,16 @@ def setup_logger(config) -> logging.Logger:
     )
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
-    
+
     # File handler (if log_file is specified)
     if config.log_file:
         # Create log directory if it doesn't exist
         log_path = Path(config.log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         file_handler = logging.FileHandler(config.log_file, encoding='utf-8')
         file_handler.setLevel(log_level)
-        
+
         # Use standard formatter for file (no colors)
         file_formatter = logging.Formatter(
             config.log_format,
@@ -116,14 +113,14 @@ def setup_logger(config) -> logging.Logger:
         )
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
-    
+
     # Prevent propagation to root logger
     logger.propagate = False
-    
+
     logger.info(f"Logger initialized with level: {config.log_level}")
     if config.log_file:
         logger.info(f"Logging to file: {config.log_file}")
-    
+
     return logger
 
 
@@ -135,10 +132,8 @@ class RequestLogger:
     - Incoming GraphQL requests with operation name and parameters
     - Response timing and success status
     - Errors with full context
-    
-    Validates: Requirements 8.2, 8.4, 8.5
     """
-    
+
     def __init__(self, logger: logging.Logger):
         """
         Initialize RequestLogger with a logger instance.
@@ -147,7 +142,7 @@ class RequestLogger:
             logger: Logger instance to use for request logging
         """
         self.logger = logger
-    
+
     def log_request(self, operation_name: str, variables: dict) -> None:
         """
         Log incoming GraphQL request.
@@ -157,12 +152,10 @@ class RequestLogger:
         Args:
             operation_name: Name of the GraphQL operation (query/mutation)
             variables: GraphQL variables provided with the request
-            
-        Validates: Requirement 8.2
         """
         # Sanitize variables to remove sensitive data
         sanitized_vars = self._sanitize_variables(variables)
-        
+
         self.logger.info(
             f"GraphQL Request: {operation_name}",
             extra={
@@ -170,13 +163,13 @@ class RequestLogger:
                 'variables': sanitized_vars
             }
         )
-    
+
     def log_response(
-        self, 
-        operation_name: str, 
-        duration_ms: float, 
-        success: bool,
-        error: Optional[str] = None
+            self,
+            operation_name: str,
+            duration_ms: float,
+            success: bool,
+            error: Optional[str] = None
     ) -> None:
         """
         Log GraphQL response with timing information.
@@ -186,8 +179,6 @@ class RequestLogger:
             duration_ms: Request duration in milliseconds
             success: Whether the request succeeded
             error: Error message if request failed
-            
-        Validates: Requirement 8.4
         """
         if success:
             self.logger.info(
@@ -208,7 +199,7 @@ class RequestLogger:
                     'error': error
                 }
             )
-    
+
     def log_service_start(self, service_type: str, input_file: str) -> None:
         """
         Log when a service operation starts.
@@ -216,8 +207,6 @@ class RequestLogger:
         Args:
             service_type: Type of service (TTS or Translation)
             input_file: Path to input file being processed
-            
-        Validates: Requirement 8.3
         """
         self.logger.info(
             f"{service_type} operation started",
@@ -226,12 +215,12 @@ class RequestLogger:
                 'input_file': input_file
             }
         )
-    
+
     def log_service_complete(
-        self, 
-        service_type: str, 
-        execution_time: float, 
-        output_file: str
+            self,
+            service_type: str,
+            execution_time: float,
+            output_file: str
     ) -> None:
         """
         Log when a service operation completes.
@@ -240,8 +229,6 @@ class RequestLogger:
             service_type: Type of service (TTS or Translation)
             execution_time: Total execution time in seconds
             output_file: Path to output file generated
-            
-        Validates: Requirement 8.4
         """
         self.logger.info(
             f"{service_type} operation completed in {execution_time:.2f}s",
@@ -251,12 +238,12 @@ class RequestLogger:
                 'output_file': output_file
             }
         )
-    
+
     def log_error(
-        self, 
-        error_message: str, 
-        context: dict,
-        exc_info: bool = True
+            self,
+            error_message: str,
+            context: dict,
+            exc_info: bool = True
     ) -> None:
         """
         Log an error with full context and stack trace.
@@ -265,15 +252,13 @@ class RequestLogger:
             error_message: Human-readable error message
             context: Additional context information (operation, parameters, etc.)
             exc_info: Whether to include exception stack trace
-            
-        Validates: Requirement 8.5
         """
         self.logger.error(
             error_message,
             extra=context,
             exc_info=exc_info
         )
-    
+
     def _sanitize_variables(self, variables: dict) -> dict:
         """
         Remove sensitive data from variables before logging.
@@ -291,7 +276,7 @@ class RequestLogger:
         """
         if not variables:
             return {}
-        
+
         # List of sensitive field names to redact
         sensitive_fields = {
             'openai_api_key',
@@ -305,7 +290,7 @@ class RequestLogger:
             'textContent',
             'fileUpload'
         }
-        
+
         sanitized = {}
         for key, value in variables.items():
             if key in sensitive_fields:
@@ -315,7 +300,7 @@ class RequestLogger:
                 sanitized[key] = self._sanitize_variables(value)
             else:
                 sanitized[key] = value
-        
+
         return sanitized
 
 

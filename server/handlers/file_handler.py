@@ -3,8 +3,6 @@ File handling for the GraphQL server.
 
 This module manages file uploads and downloads for TTS and Translation services.
 It handles file validation, temporary storage, and file retrieval for downloads.
-
-Validates: Requirements 5.1, 5.2, 5.3, 5.4, 6.1, 6.2
 """
 
 import os
@@ -26,8 +24,6 @@ class FileHandler:
     - Generate unique file IDs for download tracking
     - Retrieve files for download
     - Clean up temporary files
-    
-    Validates: Requirements 5.1, 5.2, 5.3, 5.4, 6.1, 6.2
     """
     
     def __init__(self, config, logger: logging.Logger):
@@ -63,8 +59,6 @@ class FileHandler:
             
         Raises:
             ValueError: If file validation fails
-            
-        Validates: Requirements 5.1, 5.2, 5.3
         """
         # Read file content
         content = await upload.read()
@@ -132,8 +126,6 @@ class FileHandler:
             
         Raises:
             FileNotFoundError: If file does not exist
-            
-        Validates: Requirements 6.1, 6.2
         """
         try:
             # Decode file_id to get file path
@@ -185,8 +177,6 @@ class FileHandler:
         
         Args:
             file_path: Path to temporary file to remove
-            
-        Validates: Requirement 5.4
         """
         try:
             if os.path.exists(file_path):
@@ -219,8 +209,6 @@ class FileHandler:
             
         Returns:
             Unique file identifier for download
-            
-        Validates: Requirement 6.1
         """
         # Create identifier with file path and timestamp
         timestamp = datetime.now().isoformat()

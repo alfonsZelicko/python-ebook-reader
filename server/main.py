@@ -4,14 +4,12 @@ FastAPI application with Strawberry GraphQL for TTS and Translation services.
 This is the main entry point for the GraphQL server. It initializes FastAPI,
 loads configuration, sets up logging, generates GraphQL input types from
 existing argument definitions, and mounts the GraphQL endpoint.
-
-Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 14.4
 """
 
 import sys
+import time
 from pathlib import Path
 from typing import Optional
-import time
 
 # Add project root to Python path to import core modules
 project_root = Path(__file__).parent.parent
@@ -24,17 +22,17 @@ from strawberry.fastapi import GraphQLRouter
 import strawberry
 import uvicorn
 
-from server.config import ServerConfig
-from server.logger import setup_logger, RequestLogger
-from server.schema import Query, Mutation
-from server.schema_generator import SchemaGenerator
+from server.core.config import ServerConfig
+from server.core.logger import setup_logger, RequestLogger
+from server.graphql.context import get_context
+from server.graphql.schema import Query, Mutation
+from server.graphql.schema_generator import SchemaGenerator
+from server.services.job_manager import JobManager
 from core.tts_args_definition import TTS_CONFIG_DEFS
 from core.translator_args_definition import TRANSLATOR_CONFIG_DEFS
 
 
-# ============================================================================
-# Application Initialization
-# ============================================================================
+# ========================== Application Initialization ========================== #
 
 def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
     """
@@ -45,22 +43,23 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         
     Returns:
         Configured FastAPI application
-        
-    Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
     """
     # Load configuration
     if config is None:
         config = ServerConfig.load_from_env()
-    
+
     # Setup logger
     logger = setup_logger(config)
     request_logger = RequestLogger(logger)
-    
+
+    # Initialize Job Manager
+    job_manager = JobManager(logger, max_workers=config.max_concurrent_jobs)
+
     logger.info("=" * 80)
     logger.info("GraphQL Server Initialization")
     logger.info("=" * 80)
     logger.info(f"Configuration: {config}")
-    
+
     # Create FastAPI app
     app = FastAPI(
         title="TTS & Translation GraphQL API",
@@ -69,7 +68,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc"
     )
-    
+
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -78,18 +77,17 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Store config and logger in app state for access in resolvers
     app.state.config = config
     app.state.logger = logger
     app.state.request_logger = request_logger
-    
-    # ========================================================================
-    # Generate GraphQL Input Types
-    # ========================================================================
-    
+    app.state.job_manager = job_manager
+
+    # ========================== Generate GraphQL Input Types ========================== #
+
     logger.info("Generating GraphQL input types from argument definitions...")
-    
+
     try:
         # Generate TTSInput from TTS_CONFIG_DEFS
         TTSInput = SchemaGenerator.generate_input_type(
@@ -97,48 +95,42 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
             "TTSInput"
         )
         logger.info(f"✓ Generated TTSInput type with {len(TTS_CONFIG_DEFS)} parameters")
-        
+
         # Generate TranslationInput from TRANSLATOR_CONFIG_DEFS
         TranslationInput = SchemaGenerator.generate_input_type(
             TRANSLATOR_CONFIG_DEFS,
             "TranslationInput"
         )
         logger.info(f"✓ Generated TranslationInput type with {len(TRANSLATOR_CONFIG_DEFS)} parameters")
-        
+
     except Exception as e:
         logger.error(f"Failed to generate input types: {e}", exc_info=True)
         raise
-    
-    # ========================================================================
-    # Create Strawberry GraphQL Schema
-    # ========================================================================
-    
+
+    # ========================== Create Strawberry GraphQL Schema ========================== #
+
     logger.info("Creating Strawberry GraphQL schema...")
-    
+
     try:
         schema = strawberry.Schema(
             query=Query,
             mutation=Mutation
         )
         logger.info("✓ GraphQL schema created successfully")
-        
+
     except Exception as e:
         logger.error(f"Failed to create GraphQL schema: {e}", exc_info=True)
         raise
-    
-    # ========================================================================
-    # Request Logging Middleware
-    # ========================================================================
-    
+
+    # ========================== Request Logging Middleware ========================== #
+
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
         """
         Middleware to log all HTTP requests with timing information.
-        
-        Requirements: 8.2, 8.4, 14.4
         """
         start_time = time.time()
-        
+
         # Log incoming request
         request_logger.logger.info(
             f"Incoming request: {request.method} {request.url.path}",
@@ -148,12 +140,12 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
                 'client': request.client.host if request.client else 'unknown'
             }
         )
-        
+
         # Process request
         try:
             response = await call_next(request)
             duration_ms = (time.time() - start_time) * 1000
-            
+
             # Log response
             request_logger.logger.info(
                 f"Request completed: {request.method} {request.url.path} - "
@@ -165,12 +157,12 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
                     'duration_ms': duration_ms
                 }
             )
-            
+
             return response
-            
+
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
-            
+
             # Log error
             request_logger.log_error(
                 f"Request failed: {request.method} {request.url.path}",
@@ -181,7 +173,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
                     'error': str(e)
                 }
             )
-            
+
             # Return error response
             return JSONResponse(
                 status_code=500,
@@ -190,30 +182,36 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
                     "message": "An unexpected error occurred"
                 }
             )
-    
-    # ========================================================================
-    # Mount GraphQL Endpoint
-    # ========================================================================
-    
+
+    # ========================== Mount GraphQL Endpoint========================== #
+
     logger.info("Mounting GraphQL endpoint...")
-    
-    # Create GraphQL router with GraphiQL enabled
+
+    # Create GraphQL router with GraphiQL enabled -> I can add most of the things I need for resolver, TIGHT HERE! <3 :-)
+    async def graphql_context_getter(request: Request):
+        return await get_context(
+            request,
+            request.app.state.config,
+            request.app.state.logger,
+            request.app.state.job_manager,
+            "alfonso"
+        )
+
     graphql_app = GraphQLRouter(
         schema,
         graphql_ide="graphiql",  # Enable GraphiQL playground
-        path="/graphql"
+        path="/graphql",
+        context_getter=graphql_context_getter
     )
-    
-    # Mount GraphQL at /graphql
+
+    # Mount GraphQL at /graphql -> it is just TMP playground for me :-)
     app.include_router(graphql_app, prefix="")
-    
+
     logger.info("✓ GraphQL endpoint mounted at /graphql")
     logger.info("✓ GraphiQL playground available at /graphql")
-    
-    # ========================================================================
-    # Health Check Endpoint
-    # ========================================================================
-    
+
+    # ========================== Health Check Endpoint ========================== #
+
     @app.get("/health")
     async def health_check():
         """
@@ -221,8 +219,6 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         
         Returns:
             JSON response with server status and configuration info
-            
-        Requirements: 14.4
         """
         return {
             "status": "healthy",
@@ -240,11 +236,9 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
                 "max_upload_size_mb": config.max_upload_size_mb
             }
         }
-    
-    # ========================================================================
-    # Startup Event
-    # ========================================================================
-    
+
+    # ========================== Startup Event========================== #
+
     @app.on_event("startup")
     async def startup_event():
         """
@@ -254,18 +248,16 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         - Validation of required dependencies
         - Creation of temporary directories
         - Logging of startup information
-        
-        Requirements: 1.3, 1.4
         """
         logger.info("=" * 80)
         logger.info("Server Startup")
         logger.info("=" * 80)
-        
+
         # Create temp directory if it doesn't exist
         temp_dir = Path(config.temp_directory)
         temp_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"✓ Temporary directory ready: {temp_dir.absolute()}")
-        
+
         # Validate dependencies
         try:
             import strawberry
@@ -275,22 +267,22 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         except ImportError as e:
             logger.error(f"✗ Missing required dependency: {e}")
             raise
-        
+
+        # lazy alfons -> no cert at this moment
+        protocol = "http://"  # "https://" coming soon
         # Log server configuration
-        logger.info(f"Server will listen on: http://{config.host}:{config.port}")
-        logger.info(f"GraphQL endpoint: http://{config.host}:{config.port}/graphql")
-        logger.info(f"GraphiQL playground: http://{config.host}:{config.port}/graphql")
-        logger.info(f"Health check: http://{config.host}:{config.port}/health")
-        logger.info(f"API docs: http://{config.host}:{config.port}/docs")
-        
+        logger.info(f"Server will listen on: {protocol}{config.host}:{config.port}")
+        logger.info(f"GraphQL endpoint: {protocol}{config.host}:{config.port}/graphql")
+        logger.info(f"GraphiQL playground: {protocol}{config.host}:{config.port}/graphql")
+        logger.info(f"Health check: {protocol}{config.host}:{config.port}/health")
+        logger.info(f"API docs: {protocol}{config.host}:{config.port}/docs")
+
         logger.info("=" * 80)
         logger.info("Server is ready to accept connections")
         logger.info("=" * 80)
-    
-    # ========================================================================
-    # Shutdown Event
-    # ========================================================================
-    
+
+    # ========================== Shutdown Event ========================== #
+
     @app.on_event("shutdown")
     async def shutdown_event():
         """
@@ -302,18 +294,16 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         logger.info("Server Shutdown")
         logger.info("=" * 80)
         logger.info("Performing cleanup...")
-        
+
         # Future: Add cleanup tasks here (close DB connections, etc.)
-        
+
         logger.info("✓ Cleanup completed")
         logger.info("Server stopped")
-    
+
     return app
 
 
-# ============================================================================
-# Main Entry Point
-# ============================================================================
+# ========================== Main Entry Point ========================== #
 
 def main():
     """
@@ -322,11 +312,9 @@ def main():
     Supports command-line arguments:
     - --generate-env: Generate .env.server template file
     - No arguments: Start the GraphQL server
-    
-    Requirements: 9.5
     """
     import argparse
-    
+
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
         description="GraphQL Server for TTS & Translation Services",
@@ -343,22 +331,22 @@ Examples:
   python -m server.main --generate-env --output custom.env
         """
     )
-    
+
     parser.add_argument(
         "--generate-env",
         action="store_true",
         help="Generate .env.server template file with default configuration"
     )
-    
+
     parser.add_argument(
         "--output",
         type=str,
         default=".env.server",
         help="Output path for generated .env file (default: .env.server)"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Handle --generate-env command
     if args.generate_env:
         try:
@@ -371,22 +359,23 @@ Examples:
         except Exception as e:
             print(f"✗ Failed to generate .env.server template: {e}")
             sys.exit(1)
-    
+
     # Default: Start the server
     try:
         # Load configuration
         config = ServerConfig.load_from_env()
-        
+
         # Create app
         app = create_app(config)
-        
+
         # Run server with uvicorn
         uvicorn.run(
             app,
             host=config.host,
             port=config.port,
             log_level=config.log_level.lower(),
-            timeout_keep_alive=config.request_timeout_seconds
+            timeout_keep_alive=config.request_timeout_seconds,
+            reload=True  # remove me later -> or it will be part of config, based on environment? :-/
         )
     except Exception as e:
         print(f"✗ Failed to start server: {e}")

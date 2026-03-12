@@ -6,15 +6,16 @@ Tests configuration loading, validation, and default values.
 
 import os
 import tempfile
-from pathlib import Path
+
 import pytest
-from server.config import ServerConfig
+
+from server.core.config import ServerConfig
 
 
 def test_default_config():
     """Test ServerConfig with default values."""
     config = ServerConfig()
-    
+
     assert config.host == "0.0.0.0"
     assert config.port == 8000
     assert config.log_level == "INFO"
@@ -36,7 +37,7 @@ def test_load_from_env_with_missing_file():
     """Test loading configuration when .env.server doesn't exist."""
     # Use a non-existent file
     config = ServerConfig.load_from_env("nonexistent.env")
-    
+
     # Should use defaults
     assert config.host == "0.0.0.0"
     assert config.port == 8000
@@ -46,7 +47,7 @@ def test_load_from_env_with_missing_file():
 def test_load_from_env_with_custom_values():
     """Test loading configuration from a custom .env file."""
     # Create a temporary .env file
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.env') as f:
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".env") as f:
         f.write("SERVER_HOST=127.0.0.1\n")
         f.write("SERVER_PORT=9000\n")
         f.write("LOG_LEVEL=DEBUG\n")
@@ -59,10 +60,10 @@ def test_load_from_env_with_custom_values():
         f.write("JOB_CLEANUP_HOURS=48\n")
         f.write("REQUEST_TIMEOUT_SECONDS=600\n")
         temp_file = f.name
-    
+
     try:
         config = ServerConfig.load_from_env(temp_file)
-        
+
         assert config.host == "127.0.0.1"
         assert config.port == 9000
         assert config.log_level == "DEBUG"
@@ -83,15 +84,15 @@ def test_engine_allowlist_parsing():
     # Save current env vars
     old_tts = os.environ.get("ALLOWED_TTS_ENGINES")
     old_trans = os.environ.get("ALLOWED_TRANSLATOR_ENGINES")
-    
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.env') as f:
+
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".env") as f:
         f.write("ALLOWED_TTS_ENGINES=OFFLINE, ONLINE, G_CLOUD\n")
         f.write("ALLOWED_TRANSLATOR_ENGINES=OPENAI, GEMINI\n")
         temp_file = f.name
-    
+
     try:
         config = ServerConfig.load_from_env(temp_file)
-        
+
         # Should strip whitespace
         assert config.allowed_tts_engines == ["OFFLINE", "ONLINE", "G_CLOUD"]
         assert config.allowed_translator_engines == ["OPENAI", "GEMINI"]
@@ -112,10 +113,10 @@ def test_invalid_port_validation():
     """Test validation of invalid port numbers."""
     with pytest.raises(ValueError, match="Invalid port number"):
         ServerConfig(port=0)
-    
+
     with pytest.raises(ValueError, match="Invalid port number"):
         ServerConfig(port=70000)
-    
+
     with pytest.raises(ValueError, match="Invalid port number"):
         ServerConfig(port=-1)
 
@@ -130,7 +131,7 @@ def test_invalid_max_upload_size_validation():
     """Test validation of invalid max upload size."""
     with pytest.raises(ValueError, match="Invalid max_upload_size_mb"):
         ServerConfig(max_upload_size_mb=0)
-    
+
     with pytest.raises(ValueError, match="Invalid max_upload_size_mb"):
         ServerConfig(max_upload_size_mb=-10)
 
@@ -151,7 +152,7 @@ def test_invalid_max_concurrent_jobs_validation():
     """Test validation of invalid max concurrent jobs."""
     with pytest.raises(ValueError, match="Invalid max_concurrent_jobs"):
         ServerConfig(max_concurrent_jobs=0)
-    
+
     with pytest.raises(ValueError, match="Invalid max_concurrent_jobs"):
         ServerConfig(max_concurrent_jobs=-5)
 
@@ -173,12 +174,12 @@ def test_generate_env_template():
     with tempfile.TemporaryDirectory() as tmpdir:
         output_path = os.path.join(tmpdir, "test.env")
         ServerConfig.generate_env_template(output_path)
-        
+
         # Verify file was created
         assert os.path.exists(output_path)
-        
+
         # Verify file contains expected content
-        with open(output_path, 'r') as f:
+        with open(output_path, "r") as f:
             content = f.read()
             assert "SERVER_HOST" in content
             assert "SERVER_PORT" in content
@@ -191,7 +192,7 @@ def test_config_repr():
     """Test string representation of ServerConfig."""
     config = ServerConfig()
     repr_str = repr(config)
-    
+
     assert "ServerConfig" in repr_str
     assert "host=0.0.0.0" in repr_str
     assert "port=8000" in repr_str

@@ -5,6 +5,16 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages]
 find = { include = ["core", "core.*", "utils", "utils.*", "server", "server.*"] }
 
+#  `poe server` | `poe test` | `poe help-tts` | ...
+[tool.poe.tasks]
+install-all = "pip install -e .[server,test,coqui,windows]"
+server = "python start_server.py"
+test = "pytest server/tests"
+tts = "python tts_reader.py"
+translate = "python ai_translator.py"
+help-tts = "python tts_reader.py --help"
+help-translate = "python ai_translator.py --help"
+
 [project]
 name = "modular-tts-engine"
 version = "0.1.0"
@@ -42,14 +52,19 @@ dependencies = [
     "openai~=1.0.0",
     "google-generativeai~=0.3.0",
     "deepl~=1.16.0",
+    "poethepoet~=0.31.0",
+]
+
+# 2. OPTIONAL DEPENDENCIES (EXTRAS)
+[project.optional-dependencies]
+
+# Server-only dependencies (GraphQL API) -> `pip install ".[server,test]"`
+server = [
     "strawberry-graphql[fastapi]~=0.243.0",
     "fastapi~=0.115.0",
     "uvicorn[standard]~=0.32.0",
     "python-multipart~=0.0.12",
 ]
-
-# 2. OPTIONAL DEPENDENCIES (EXTRAS)
-[project.optional-dependencies]
 
 # Testing dependencies
 test = [

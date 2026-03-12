@@ -4,16 +4,17 @@ GraphQL context for request handling.
 This module provides the Context class that holds request-scoped information
 for GraphQL resolvers. It includes configuration, logging, and placeholder
 fields for future authentication integration.
-
-Validates: Requirements 12.1, 12.2, 12.3, 12.4
 """
 
-from typing import Optional, Any
 from dataclasses import dataclass
+from typing import Optional, Any
+
+from fastapi import Request
+from strawberry.fastapi import BaseContext
 
 
 @dataclass
-class Context:
+class Context(BaseContext):
     """
     GraphQL request context.
     
@@ -25,15 +26,15 @@ class Context:
     
     The context is passed to all GraphQL resolvers, allowing them to access
     request-scoped information and services.
-    
-    Validates: Requirements 12.1, 12.2, 12.3
     """
-    
+
     # Core context fields
-    request: Any  # FastAPI Request object (will be typed when FastAPI is integrated)
-    config: Any   # ServerConfig instance
-    logger: Any   # Logger instance
-    
+    request: Request  # FastAPI Request object
+    config: Any  # ServerConfig instance -> .env.server
+    logger: Any  # Logger instance
+    job_manager: Any  # JobManager instance
+    user_id: Optional[str] = None  # Just a research purpose
+
     # ========================================================================
     # FUTURE: Authentication fields (not implemented yet)
     # ========================================================================
@@ -55,15 +56,17 @@ class Context:
     #           context.user = User(**user_data)
     #           context.is_authenticated = True
     # ========================================================================
-    
+
     user: Optional[Any] = None  # Future: User object with id, email, roles, etc.
     is_authenticated: bool = False  # Future: True if user is authenticated
 
 
 async def get_context(
-    request: Any,  # FastAPI Request object
-    config: Any,   # ServerConfig instance
-    logger: Any    # Logger instance
+        request: Request,  # FastAPI Request object
+        config: Any,  # ServerConfig instance
+        logger: Any,  # Logger instance
+        job_manager: Any,  # JobManager instance
+        user_id: Optional[str] = None
 ) -> Context:
     """
     Creates GraphQL context for each request.
@@ -121,8 +124,11 @@ async def get_context(
            is_authenticated=is_authenticated
        )
        ```
-    
-    Validates: Requirements 12.2, 12.3, 12.4
+       :param user_id:
+       :param logger:
+       :param config:
+       :param request:
+       :param job_manager:
     """
     # Create context with current request information
     # Authentication fields remain None/False until auth is implemented
@@ -130,6 +136,8 @@ async def get_context(
         request=request,
         config=config,
         logger=logger,
+        job_manager=job_manager,
+        user_id=user_id,
         user=None,  # TODO: Populate from authentication middleware
         is_authenticated=False  # TODO: Set to True when user is authenticated
     )

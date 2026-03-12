@@ -1,6 +1,6 @@
 """GraphQL type definitions (inputs and outputs)."""
 
-from server.types.outputs import (
+from server.graphql.types.outputs import (
     JobStatusEnum,
     JobProgress,
     JobStatus,
