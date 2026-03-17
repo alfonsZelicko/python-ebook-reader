@@ -1,8 +1,11 @@
+import argparse
 import json
 import os
 import shutil
+from pathlib import Path
 from typing import Dict, Any
-import argparse
+
+from utils.file_manager import get_work_directory, get_progress_file_path
 
 
 class ProgressManager:
@@ -12,47 +15,51 @@ class ProgressManager:
         """Initializes manager paths and determines the output folder based on the input file."""
 
         # 1. Determine paths
-        base_name = os.path.splitext(os.path.basename(file_path))[0]
-        file_dir = os.path.dirname(file_path) or '.'
+        temp_dir = getattr(args, "TEMP_DIR", None)
+        self.output_dir = str(get_work_directory(file_path, temp_dir))
 
-        self.output_dir = os.path.join(file_dir, base_name)
-        self.progress_file = os.path.join(self.output_dir, f"{base_name}.progress")
+        base_name = Path(file_path).stem
+        self.progress_file = str(
+            get_progress_file_path(Path(self.output_dir), base_name)
+        )
 
-        # Save current arguments as a dictionary (used as the default state and to check keys)
         self.current_args = vars(args)
-        # Stores loaded or current progress state
         self.state: Dict[str, Any] = {}
 
         # 2. PERFORM CLEANUP IF REQUESTED (Destructive action)
-        if args.COD:
-            if os.path.exists(self.output_dir):
-                shutil.rmtree(self.output_dir)
-                print(f"[CLEAN] Deleted old output directory: {self.output_dir}")
+        if args.COD and os.path.exists(self.output_dir):
+            shutil.rmtree(self.output_dir)
+            print(f"[CLEAN] Deleted old output directory: {self.output_dir}")
 
-        # 3. ENSURE DIRECTORY EXISTS (Guaranteed prerequisite for use!!!)
         os.makedirs(self.output_dir, exist_ok=True)
 
     def load_state(self) -> bool:
         """Attempts to load the progress state from disk and overrides current args if successful."""
         if os.path.exists(self.progress_file):
             try:
-                with open(self.progress_file, 'r', encoding='utf-8') as f:
+                with open(self.progress_file, "r", encoding="utf-8") as f:
                     self.state = json.load(f)
 
-                print(f"\n--- RESTORING STATE from {os.path.basename(self.progress_file)} ---")
+                print(
+                    f"\n--- RESTORING STATE from {os.path.basename(self.progress_file)} ---"
+                )
 
                 # Override current CLI parameters with saved parameters (e.g., engine, rate, max-file-duration)
-                for key, value in self.state['parameters'].items():
+                for key, value in self.state["parameters"].items():
                     # Only override parameters that were originally present in the CLI arguments
                     if key in self.current_args:
-                        print(f"   [OVERRIDE] {key.upper()}: {self.current_args[key]} -> {value}")
+                        print(
+                            f"   [OVERRIDE] {key.upper()}: {self.current_args[key]} -> {value}"
+                        )
                         self.current_args[key] = value
 
                 print("-----------------------------------------------------")
                 return True
 
             except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
-                print(f"Warning: Corrupted or unreadable progress file found. Starting fresh. ({e})")
+                print(
+                    f"Warning: Corrupted or unreadable progress file found. Starting fresh. ({e})"
+                )
                 self.delete_state()
                 return False
 
@@ -67,15 +74,15 @@ class ProgressManager:
         # 2. Save the complete state
         self.state = {
             # Save parameters used for generation (for restoration consistency)
-            'parameters': self.current_args,
+            "parameters": self.current_args,
             # Index of the LAST CHUNK successfully included in a saved MP3 segment
-            'last_chunk_index': last_chunk_index,
+            "last_chunk_index": last_chunk_index,
             # Index of the LAST MP3 segment that was SUCCESSFULLY CLOSED
-            'last_mp3_index': last_mp3_index
+            "last_mp3_index": last_mp3_index,
         }
 
         try:
-            with open(self.progress_file, 'w', encoding='utf-8') as f:
+            with open(self.progress_file, "w", encoding="utf-8") as f:
                 json.dump(self.state, f, indent=4)
         except Exception as e:
             print(f"CRITICAL ERROR: Failed to save progress file: {e}")
@@ -92,17 +99,17 @@ class ProgressManager:
     @property
     def is_restored(self) -> bool:
         """Checks if a state has been successfully loaded."""
-        return 'parameters' in self.state
+        return "parameters" in self.state
 
     @property
     def get_last_chunk_index(self) -> int:
         """Returns the index of the last processed chunk, defaults to -1 (start at 0)."""
-        return self.state.get('last_chunk_index', -1)
+        return self.state.get("last_chunk_index", -1)
 
     @property
     def get_last_mp3_index(self) -> int:
         """Returns the index of the last successfully closed MP3 file, defaults to 0."""
-        return self.state.get('last_mp3_index', 0)
+        return self.state.get("last_mp3_index", 0)
 
     def get_next_mp3_filename(self, mp3_index: int) -> str:
         """Generates the filename for the next MP3 segment."""

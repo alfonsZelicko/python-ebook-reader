@@ -11,8 +11,7 @@ Both mutations support synchronous and asynchronous execution modes.
 from typing import Union, TYPE_CHECKING
 
 import strawberry
-
-from server.graphql.types.outputs import TTSResult, TranslationResult, JobStatusEnum
+from server.graphql.types.outputs import TTSResult, JobStatusEnum, TranslationResultWithFile
 
 if TYPE_CHECKING:
     from server.graphql.context import Context
@@ -199,19 +198,19 @@ class Mutation:
         input: "TranslationInput",
         async_mode: bool = False,
         info: strawberry.Info = None,
-    ) -> Union[TranslationResult, JobCreated]:
+    ) -> Union[TranslationResultWithFile, JobCreated]:
         """
         Translates text using specified translation engine.
 
         This mutation accepts translation parameters and either:
-        - Executes synchronously and returns TranslationResult immediately
+        - Executes synchronously and returns TranslationResultWithFile immediately
         - Creates an async job and returns JobCreated with job_id for tracking
 
         Process:
         1. Validate input parameters (engine, text_content/file_upload, languages)
         2. Check async_mode flag
         3. If async: create job via JobManager, return JobCreated
-        4. If sync: call TranslationService.translate_text(), return TranslationResult
+        4. If sync: call TranslationService.translate_text(), return TranslationResultWithFile
 
         Args:
             input: TranslationInput with translation parameters
@@ -219,7 +218,7 @@ class Mutation:
             info: Strawberry info object containing context
 
         Returns:
-            Union[TranslationResult, JobCreated]: Result or job ID depending on async_mode
+            Union[TranslationResultWithFile, JobCreated]: Result or job ID depending on async_mode
 
         Raises:
             Exception: If validation fails or processing errors occur
@@ -231,17 +230,22 @@ class Mutation:
               translateText(
                 input: {
                   textContent: "Hello world"
-                  engine: OPENAI
+                  translationEngine: GEMINI
                   sourceLanguage: "en"
                   targetLanguage: "cs"
-                  openaiApiKey: "sk-..."
                 }
                 asyncMode: false
               ) {
-                ... on TranslationResult {
+                ... on TranslationResultWithFile {
                   success
                   message
                   outputFile
+                  fileDownload {
+                    fileId
+                    filename
+                    downloadUrl
+                    content
+                  }
                   metadata {
                     engineUsed
                     sourceLanguage
@@ -258,7 +262,7 @@ class Mutation:
               translateText(
                 input: {
                   textContent: "Long text..."
-                  engine: GEMINI
+                  translationEngine: GEMINI
                   sourceLanguage: "en"
                   targetLanguage: "de"
                 }
@@ -352,7 +356,8 @@ class Mutation:
 
     # =========================== Helper Methods =========================== #
 
-    def _validate_tts_input(self, input: "TTSInput", logger) -> None:
+    @staticmethod
+    def _validate_tts_input(input: "TTSInput", logger) -> None:
         """
         Validate TTS input parameters.
 
@@ -384,7 +389,8 @@ class Mutation:
 
         logger.debug("TTS input validation passed")
 
-    def _validate_translation_input(self, input: "TranslationInput", logger) -> None:
+    @staticmethod
+    def _validate_translation_input(input: "TranslationInput", logger) -> None:
         """
         Validate translation input parameters.
 
@@ -410,26 +416,27 @@ class Mutation:
             raise ValueError(error_msg)
 
         # Check if engine is specified
-        if not hasattr(input, "engine") or not input.engine:
-            error_msg = "Translation engine must be specified"
-            logger.warning(f"Translation validation failed: {error_msg}")
-            raise ValueError(error_msg)
+        # if not hasattr(input, "translation_engine") or not input.translation_engine:
+        #     error_msg = "Translation engine must be specified"
+        #     logger.warning(f"Translation validation failed: {error_msg}")
+        #     raise ValueError(error_msg)
 
         # Check if source language is specified
-        if not hasattr(input, "source_language") or not input.source_language:
-            error_msg = "Source language must be specified"
-            logger.warning(f"Translation validation failed: {error_msg}")
-            raise ValueError(error_msg)
+        # if not hasattr(input, "source_language") or not input.source_language:
+        #     error_msg = "Source language must be specified"
+        #     logger.warning(f"Translation validation failed: {error_msg}")
+        #     raise ValueError(error_msg)
 
         # Check if target language is specified
-        if not hasattr(input, "target_language") or not input.target_language:
-            error_msg = "Target language must be specified"
-            logger.warning(f"Translation validation failed: {error_msg}")
-            raise ValueError(error_msg)
+        # if not hasattr(input, "target_language") or not input.target_language:
+        #     error_msg = "Target language must be specified"
+        #     logger.warning(f"Translation validation failed: {error_msg}")
+        #     raise ValueError(error_msg)
 
         logger.debug("Translation input validation passed")
 
-    def _run_async_service(self, service_func, input_data, progress_callback):
+    @staticmethod
+    def _run_async_service(service_func, input_data, progress_callback):
         """
         Helper to run async service function in sync context.
 

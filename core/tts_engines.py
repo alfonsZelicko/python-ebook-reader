@@ -1,22 +1,26 @@
-import os
-import io
 import argparse
+import io
+import logging
+import os
 import platform
 import sys
+
 from pydub import AudioSegment
-import logging
+
 
 class BaseTTSEngine:
     def __init__(self, speaking_rate: float):
         self.speaking_rate = speaking_rate
+
     def generate_audio_chunk(self, text: str):
         raise NotImplementedError
+
 
 class OfflineTTSEngine(BaseTTSEngine):
     def __init__(self, speaking_rate: float, offline_voice_id: str):
         super().__init__(speaking_rate)
         self.offline_voice_id = offline_voice_id
-        
+
         if platform.system() == "Windows":
             try:
                 self._init_win32_sapi()
@@ -28,62 +32,66 @@ class OfflineTTSEngine(BaseTTSEngine):
 
     def _init_win32_sapi(self):
         import win32com.client
+
         self.win32client = win32com.client
-        
+
         print("Initializing OFFLINE engine (pywin32 SAPI)...")
         self.speaker = self.win32client.Dispatch("SAPI.SpVoice")
 
     def _init_pyttsx3(self):
         try:
             import pyttsx3
+
             self.pyttsx3 = pyttsx3
         except ImportError:
             print("ERROR: Offline TTS requires 'pyttsx3' or 'pywin32'.")
             print("FIX: Run 'pip install pyttsx3'")
             sys.exit(1)
-            
+
         print("Initializing OFFLINE engine (pyttsx3)...")
         try:
             self.engine = self.pyttsx3.init()
-            self.engine.setProperty('rate', int(175 * self.speaking_rate))
+            self.engine.setProperty("rate", int(175 * self.speaking_rate))
 
             target_voice_id = self.offline_voice_id.strip().strip('"')
-            voices = self.engine.getProperty('voices')
+            voices = self.engine.getProperty("voices")
             voice_to_use = next((v.id for v in voices if v.id == target_voice_id), None)
 
             if voice_to_use:
-                self.engine.setProperty('voice', voice_to_use)
+                self.engine.setProperty("voice", voice_to_use)
                 print(f"Using configured pyttsx3 voice: {target_voice_id}")
             elif target_voice_id:
                 print(f"WARNING: Voice '{target_voice_id}' not found. Using default.")
         except Exception as e:
-            print(f"\nFATAL ERROR: Could not initialize pyttsx3. ({e})")
-            if platform.system() == "Linux":
-                print("HINT: On Linux, ensure 'espeak' is installed: 'sudo apt install espeak'")
-            sys.exit(1)
+            # if platform.system() == "Linux":
+            #     additional_message = "HINT: On Linux, ensure 'espeak' is installed: 'sudo apt install espeak'"
+            #     )
+            raise Exception(f"FATAL ERROR: Could not initialize pyttsx3.({e})")
 
     def generate_audio_chunk(self, text: str):
-        if hasattr(self, 'speaker'):
+        if hasattr(self, "speaker"):
             self.speaker.Speak(text)
-        elif hasattr(self, 'engine'):
+        elif hasattr(self, "engine"):
             self.engine.say(text)
             self.engine.runAndWait()
         else:
             print("ERROR: No active offline engine found.")
+
 
 class OnlineTTSEngine(BaseTTSEngine):
     def __init__(self, speaking_rate: float, lang_code: str):
         super().__init__(speaking_rate)
         try:
             import gtts
+
             self.gtts_module = gtts
         except ImportError:
-            print("ERROR: 'gTTS' library not found. Required for ONLINE mode.")
-            print("FIX: Run 'pip install gTTS'")
-            sys.exit(1)
+            raise ImportError(
+                "'gTTS' library not found. Please install it: pip install gTTS"
+            )
 
         print("Initializing ONLINE engine (gTTS)...")
-        self.gtts_lang_code = lang_code.split('-')[0].lower()
+        self.gtts_lang_code = lang_code.split("-")[0].lower()
 
     def generate_audio_chunk(self, text: str) -> AudioSegment:
         try:
@@ -96,35 +104,45 @@ class OnlineTTSEngine(BaseTTSEngine):
                 audio = audio.speedup(playback_speed=self.speaking_rate)
             return audio
         except Exception as e:
-            print(f"Error processing gTTS chunk: {e}")
-            raise
+            raise Exception(f"Error processing gTTS chunk: {e}")
+
 
 class GoogleCloudTTSEngine(BaseTTSEngine):
-    def __init__(self, speaking_rate: float, credentials_path: str, voice_id: str, lang_code: str):
+    def __init__(
+        self, speaking_rate: float, credentials_path: str, voice_id: str, lang_code: str
+    ):
         super().__init__(speaking_rate)
         try:
             from google.cloud import texttospeech
+
             self.tts_module = texttospeech
         except ImportError:
-            print("ERROR: Google Cloud TTS library not found.")
-            print("FIX: Run 'pip install google-cloud-texttospeech'")
-            sys.exit(1)
+            raise ImportError(
+                "Google Cloud TTS library not found. Please install it: pip install google-cloud-texttospeech"
+            )
 
         if not voice_id or not credentials_path:
-            raise ValueError("G_VOICE and G_CRED must be set.")
+            raise ValueError("G_VOICE and G_KEY must be set.")
         if not os.path.exists(credentials_path):
-            raise FileNotFoundError(f"Google Cloud key file not found at: {credentials_path}")
+            raise FileNotFoundError(
+                f"Google Cloud key file not found at: {credentials_path}"
+            )
 
         try:
-            self.client = self.tts_module.TextToSpeechClient.from_service_account_json(credentials_path)
+            self.client = self.tts_module.TextToSpeechClient.from_service_account_json(
+                credentials_path
+            )
         except Exception as e:
-            print(f"ERROR: Failed to authorize Google Cloud with provided key. ({e})")
-            sys.exit(1)
+            raise Exception(
+                f"Failed to authorize Google Cloud with provided key. ({e})"
+            )
 
-        self.voice = self.tts_module.VoiceSelectionParams(language_code=lang_code, name=voice_id)
+        self.voice = self.tts_module.VoiceSelectionParams(
+            language_code=lang_code, name=voice_id
+        )
         self.audio_config = self.tts_module.AudioConfig(
             audio_encoding=self.tts_module.AudioEncoding.MP3,
-            speaking_rate=speaking_rate
+            speaking_rate=speaking_rate,
         )
         print(f"Using Google Cloud Voice: {voice_id}")
 
@@ -141,74 +159,83 @@ class GoogleCloudTTSEngine(BaseTTSEngine):
             print(f"Error processing Google Cloud TTS chunk: {e}")
             raise
 
+
 class CoquiTTSEngine(BaseTTSEngine):
-    def __init__(self, speaking_rate: float, model_name: str, speaker_name: str, speaker_wav: str, lang_code: str):
+    def __init__(
+        self,
+        speaking_rate: float,
+        model_name: str,
+        speaker_name: str,
+        speaker_wav: str,
+        lang_code: str,
+    ):
         super().__init__(speaking_rate)
         logging.getLogger("TTS").setLevel(logging.ERROR)
-        
+
         try:
             import torch
             import numpy as np
             from TTS.api import TTS
+
             self.torch = torch
             self.np = np
             self.TTS = TTS
         except ImportError:
-            print("ERROR: Coqui TTS dependencies not found.")
-            sys.exit(1)
+            raise ImportError(
+                "Coqui TTS dependencies not found. Please install it: pip install [coqui]"
+            )
 
         self.model_name = model_name
         self.speaker_name = speaker_name
         self.speaker_wav = speaker_wav
-        self.target_lang = lang_code.split('-')[0].lower()
-        
+        self.target_lang = lang_code.split("-")[0].lower()
+
         device = "cuda" if self.torch.cuda.is_available() else "cpu"
         print(f"Coqui TTS: Using {device.upper()}. Loading model '{model_name}'...")
-        
+
         try:
             self.tts = self.TTS(model_name=model_name, progress_bar=False).to(device)
         except Exception as e:
-            print(f"ERROR: Failed to load Coqui model. ({e})")
-            sys.exit(1)
+            raise Exception(f"Failed to load Coqui model. ({e})")
 
     def _float_to_pcm(self, waveform) -> bytes:
         return (self.np.array(waveform) * 32767).astype(self.np.int16).tobytes()
 
     def generate_audio_chunk(self, text: str) -> AudioSegment:
         options = {"text": text}
-        
+
         # Handle Multi-lingual models (like XTTS v2)
-        if hasattr(self.tts, 'is_multi_lingual') and self.tts.is_multi_lingual:
+        if hasattr(self.tts, "is_multi_lingual") and self.tts.is_multi_lingual:
             options["language"] = self.target_lang
-            
+
             # XTTS requires a speaker reference (wav or name)
             if self.speaker_wav and os.path.exists(self.speaker_wav):
                 options["speaker_wav"] = self.speaker_wav
-            elif self.speaker_name and self.speaker_name.lower() != 'none':
+            elif self.speaker_name and self.speaker_name.lower() != "none":
                 options["speaker"] = self.speaker_name
             else:
                 # Fallback to the first available speaker if none provided
-                if hasattr(self.tts, 'speakers') and self.tts.speakers:
+                if hasattr(self.tts, "speakers") and self.tts.speakers:
                     options["speaker"] = self.tts.speakers[0]
                 else:
                     options["speaker"] = "Ana Lucia"
         else:
             # Standard single-voice models (like VITS)
-            if self.speaker_name and self.speaker_name.lower() != 'none':
+            if self.speaker_name and self.speaker_name.lower() != "none":
                 options["speaker"] = self.speaker_name
 
         try:
             # Generate audio using the TTS API
             waveform = self.tts.tts(**options)
             pcm_data = self._float_to_pcm(waveform)
-            
+
             audio = AudioSegment(
                 data=pcm_data,
                 sample_width=2,
                 frame_rate=self.tts.synthesizer.output_sample_rate,
-                channels=1
+                channels=1,
             )
-            
+
             # Adjust playback speed if needed
             if self.speaking_rate != 1.0:
                 audio = audio.speedup(playback_speed=self.speaking_rate)
@@ -217,36 +244,72 @@ class CoquiTTSEngine(BaseTTSEngine):
             print(f"Error processing Coqui chunk: {e}")
             raise
 
+
+class ElevenLabsTTSEngine(BaseTTSEngine):
+    def __init__(
+        self,
+        speaking_rate: float,
+        api_key: str,
+        voice_id: str,
+        model_id: str = "eleven_multilingual_v2",
+    ):
+        super().__init__(speaking_rate)
+        logging.getLogger("TTS").setLevel(logging.ERROR)
+
+        try:
+            from elevenlabs import ElevenLabs
+        except ImportError:
+            raise ImportError(
+                "ElevenLabs library not found. Please install it: pip install elevenlabs"
+            )
+
+        if not api_key:
+            raise ValueError("ELEVENLABS_CRED must be set.")
+
+        self.api_key = api_key
+        self.voice_id = voice_id
+        self.model_id = model_id
+
+        try:
+            self.client = ElevenLabs(api_key=api_key)
+        except Exception as e:
+            raise Exception(f"Failed to initialize ElevenLabs client: {e}")
+
+        print(f"Using ElevenLabs Voice: {voice_id} (Model: {model_id})")
+
+    def generate_audio_chunk(self, text: str) -> AudioSegment:
+        try:
+            audio_generator = self.client.generate(
+                text=text, voice=self.voice_id, model=self.model_id
+            )
+            # The generator yields bytes directly
+            audio_bytes = b"".join(audio_generator)
+
+            mp3_fp = io.BytesIO(audio_bytes)
+            mp3_fp.seek(0)
+            audio = AudioSegment.from_file(mp3_fp, format="mp3")
+
+            if self.speaking_rate != 1.0:
+                audio = audio.speedup(playback_speed=self.speaking_rate)
+            return audio
+        except Exception as e:
+            print(f"Error processing ElevenLabs chunk: {e}")
+            raise
+
+
 def initialize_tts_engine(args: argparse.Namespace):
     engine_choice = args.TE.upper()
-    try:
-        if engine_choice == "OFFLINE":
-            return OfflineTTSEngine(
-                args.SR, 
-                args.OFF_VOICE
-                )
-        elif engine_choice == "ONLINE":
-            return OnlineTTSEngine(
-                args.SR, 
-                args.L_CODE
-                )
-        elif engine_choice == "G_CLOUD":
-            return GoogleCloudTTSEngine(
-                args.SR, 
-                args.G_CRED, 
-                args.G_VOICE, 
-                args.L_CODE
-                )
-        if engine_choice == "COQUI":
-            return CoquiTTSEngine(
-                args.SR, 
-                args.C_MODEL, 
-                args.C_SPEAKER, 
-                args.C_WAV,
-                args.L_CODE
-                )
-        else:
-            raise ValueError(f"Unknown engine: {engine_choice}")
-    except Exception as e:
-        print(f"\nCRITICAL ERROR during TTS initialization: {e}")
-        sys.exit(1)
+    if engine_choice == "OFFLINE":
+        return OfflineTTSEngine(args.SR, args.OFF_VOICE)
+    elif engine_choice == "ONLINE":
+        return OnlineTTSEngine(args.SR, args.L_CODE)
+    elif engine_choice == "G_CLOUD":
+        return GoogleCloudTTSEngine(args.SR, args.G_KEY, args.G_VOICE, args.L_CODE)
+    elif engine_choice == "COQUI":
+        return CoquiTTSEngine(
+            args.SR, args.C_MODEL, args.C_SPEAKER, args.C_WAV, args.L_CODE
+        )
+    elif engine_choice == "ELEVENLABS":
+        return ElevenLabsTTSEngine(args.SR, args.EL_CRED, args.EL_VOICE, args.EL_MODEL)
+    else:
+        raise ValueError(f"Unknown engine: {engine_choice}")

@@ -72,20 +72,20 @@ def test_create_enum_from_choices():
 def test_convert_key_to_field_name():
     """Test conversion of short keys to GraphQL field names."""
     # Test special mappings
-    assert SchemaGenerator._convert_key_to_field_name("TE") == "engine"
-    assert SchemaGenerator._convert_key_to_field_name("CS") == "chunk_size"
-    assert SchemaGenerator._convert_key_to_field_name("CP") == "chunk_by_paragraph"
-    assert SchemaGenerator._convert_key_to_field_name("SR") == "speaking_rate"
-    assert SchemaGenerator._convert_key_to_field_name("G_CRED") == "google_credentials"
-    assert SchemaGenerator._convert_key_to_field_name("OFF_VOICE") == "offline_voice"
-    assert SchemaGenerator._convert_key_to_field_name("L_CODE") == "language_code"
+    assert SchemaGenerator.convert_key_to_field_name("TE") == "engine"
+    assert SchemaGenerator.convert_key_to_field_name("CS") == "chunk_size"
+    assert SchemaGenerator.convert_key_to_field_name("CP") == "chunk_by_paragraph"
+    assert SchemaGenerator.convert_key_to_field_name("SR") == "speaking_rate"
+    assert SchemaGenerator.convert_key_to_field_name("G_KEY") == "google_credentials"
+    assert SchemaGenerator.convert_key_to_field_name("OFF_VOICE") == "offline_voice"
+    assert SchemaGenerator.convert_key_to_field_name("L_CODE") == "language_code"
 
     # Translation-specific mappings
-    assert SchemaGenerator._convert_key_to_field_name("SL") == "source_language"
-    assert SchemaGenerator._convert_key_to_field_name("TL") == "target_language"
-    assert SchemaGenerator._convert_key_to_field_name("O_KEY") == "openai_api_key"
-    assert SchemaGenerator._convert_key_to_field_name("O_MODEL") == "openai_model"
-    assert SchemaGenerator._convert_key_to_field_name("MR") == "max_retries"
+    assert SchemaGenerator.convert_key_to_field_name("SL") == "source_language"
+    assert SchemaGenerator.convert_key_to_field_name("TL") == "target_language"
+    assert SchemaGenerator.convert_key_to_field_name("O_KEY") == "openai_api_key"
+    assert SchemaGenerator.convert_key_to_field_name("O_MODEL") == "openai_model"
+    assert SchemaGenerator.convert_key_to_field_name("MR") == "max_retries"
 
 
 def test_generated_type_has_defaults():

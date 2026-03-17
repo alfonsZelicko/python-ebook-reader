@@ -156,6 +156,9 @@ record.wav
 /test_en
 /test
 
+# Server temp folder for tmp files
+/temp
+
 # Spyder project settings
 .spyderproject
 .spyproject

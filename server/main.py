@@ -15,26 +15,10 @@ from typing import Optional
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from strawberry.fastapi import GraphQLRouter
-import strawberry
-import uvicorn
-
-from server.core.config import ServerConfig
-from server.core.logger import setup_logger, RequestLogger
-from server.graphql.context import get_context
-from server.graphql.schema import Query, Mutation
-from server.graphql.schema_generator import SchemaGenerator
-from server.services.job_manager import JobManager
-from core.tts_args_definition import TTS_CONFIG_DEFS
-from core.translator_args_definition import TRANSLATOR_CONFIG_DEFS
-
 
 # ========================== Application Initialization ========================== #
 
-def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
+def create_app(config: Optional["ServerConfig"] = None) -> "FastAPI":
     """
     Create and configure the FastAPI application.
     
@@ -44,6 +28,25 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
     Returns:
         Configured FastAPI application
     """
+    # Import heavy dependencies here to avoid loading them when just showing help
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse, FileResponse
+    from fastapi.middleware.cors import CORSMiddleware
+    from strawberry.fastapi import GraphQLRouter
+    import strawberry
+    import uvicorn
+
+    from server.core.config import ServerConfig
+    from server.core.logger import setup_logger, RequestLogger
+    from server.graphql.context import get_context
+    from server.graphql.schema import Query, Mutation
+    from server.graphql.schema_generator import SchemaGenerator
+    from server.services.job_manager import JobManager
+    from server.services.translation_service import TranslationService
+    from server.services.tts_service import TTSService
+    from core.tts_args_definition import TTS_CONFIG_DEFS
+    from core.translator_args_definition import TRANSLATOR_CONFIG_DEFS
+    
     # Load configuration
     if config is None:
         config = ServerConfig.load_from_env()
@@ -54,6 +57,12 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
 
     # Initialize Job Manager
     job_manager = JobManager(logger, max_workers=config.max_concurrent_jobs)
+    
+    # Initialize Translation Service
+    translation_service = TranslationService(config, logger)
+    
+    # Initialize TTS Service
+    tts_service = TTSService(config, logger)
 
     logger.info("=" * 80)
     logger.info("GraphQL Server Initialization")
@@ -83,6 +92,8 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
     app.state.logger = logger
     app.state.request_logger = request_logger
     app.state.job_manager = job_manager
+    app.state.translation_service = translation_service
+    app.state.tts_service = tts_service
 
     # ========================== Generate GraphQL Input Types ========================== #
 
@@ -94,14 +105,14 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
             TTS_CONFIG_DEFS,
             "TTSInput"
         )
-        logger.info(f"✓ Generated TTSInput type with {len(TTS_CONFIG_DEFS)} parameters")
+        logger.info(f"[OK] Generated TTSInput type with {len(TTS_CONFIG_DEFS)} parameters")
 
         # Generate TranslationInput from TRANSLATOR_CONFIG_DEFS
         TranslationInput = SchemaGenerator.generate_input_type(
             TRANSLATOR_CONFIG_DEFS,
             "TranslationInput"
         )
-        logger.info(f"✓ Generated TranslationInput type with {len(TRANSLATOR_CONFIG_DEFS)} parameters")
+        logger.info(f"[OK] Generated TranslationInput type with {len(TRANSLATOR_CONFIG_DEFS)} parameters")
 
     except Exception as e:
         logger.error(f"Failed to generate input types: {e}", exc_info=True)
@@ -116,7 +127,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
             query=Query,
             mutation=Mutation
         )
-        logger.info("✓ GraphQL schema created successfully")
+        logger.info("[OK] GraphQL schema created successfully")
 
     except Exception as e:
         logger.error(f"Failed to create GraphQL schema: {e}", exc_info=True)
@@ -207,8 +218,8 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
     # Mount GraphQL at /graphql -> it is just TMP playground for me :-)
     app.include_router(graphql_app, prefix="")
 
-    logger.info("✓ GraphQL endpoint mounted at /graphql")
-    logger.info("✓ GraphiQL playground available at /graphql")
+    logger.info("[OK] GraphQL endpoint mounted at /graphql")
+    logger.info("[OK] GraphiQL playground available at /graphql")
 
     # ========================== Health Check Endpoint ========================== #
 
@@ -237,6 +248,44 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
             }
         }
 
+    @app.get("/download/{filename:path}")
+    async def download_file(filename: str):
+        """
+        Download endpoint for translated files.
+        
+        Args:
+            filename: Path to the file (can include subdirectories)
+            
+        Returns:
+            File response with the requested file
+        """
+        from pathlib import Path
+        
+        # Security: only allow files from temp directory
+        temp_dir = Path(config.temp_directory)
+        file_path = temp_dir / filename
+        
+        if not file_path.exists() or not file_path.is_file():
+            return JSONResponse(
+                status_code=404,
+                content={"error": "File not found"}
+            )
+        
+        # Additional security: ensure file is within temp directory
+        try:
+            file_path.resolve().relative_to(temp_dir.resolve())
+        except ValueError:
+            return JSONResponse(
+                status_code=403,
+                content={"error": "Access denied"}
+            )
+        
+        return FileResponse(
+            path=str(file_path),
+            filename=Path(filename).name,
+            media_type="text/plain"
+        )
+
     # ========================== Startup Event========================== #
 
     @app.on_event("startup")
@@ -256,16 +305,16 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         # Create temp directory if it doesn't exist
         temp_dir = Path(config.temp_directory)
         temp_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"✓ Temporary directory ready: {temp_dir.absolute()}")
+        logger.info(f"[OK] Temporary directory ready: {temp_dir.absolute()}")
 
         # Validate dependencies
         try:
             import strawberry
             import fastapi
             import uvicorn
-            logger.info("✓ All required dependencies available")
+            logger.info("[OK] All required dependencies available")
         except ImportError as e:
-            logger.error(f"✗ Missing required dependency: {e}")
+            logger.error(f"[FAIL] Missing required dependency: {e}")
             raise
 
         # lazy alfons -> no cert at this moment
@@ -297,7 +346,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
 
         # Future: Add cleanup tasks here (close DB connections, etc.)
 
-        logger.info("✓ Cleanup completed")
+        logger.info("[OK] Cleanup completed")
         logger.info("Server stopped")
 
     return app
@@ -351,13 +400,13 @@ Examples:
     if args.generate_env:
         try:
             ServerConfig.generate_env_template(args.output)
-            print(f"✓ Successfully generated .env.server template at: {args.output}")
+            print(f"[OK] Successfully generated .env.server template at: {args.output}")
             print(f"\nNext steps:")
             print(f"1. Review and customize the configuration in {args.output}")
             print(f"2. Start the server with: python -m server.main")
             return
         except Exception as e:
-            print(f"✗ Failed to generate .env.server template: {e}")
+            print(f"[FAIL] Failed to generate .env.server template: {e}")
             sys.exit(1)
 
     # Default: Start the server
@@ -378,7 +427,7 @@ Examples:
             reload=True  # remove me later -> or it will be part of config, based on environment? :-/
         )
     except Exception as e:
-        print(f"✗ Failed to start server: {e}")
+        print(f"[FAIL] Failed to start server: {e}")
         sys.exit(1)
 
 

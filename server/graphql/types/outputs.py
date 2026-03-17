@@ -1,20 +1,25 @@
 """
-GraphQL output types for TTS and Translation services.
+GraphQL Output Types for TTS and Translation services.
 
-This module defines all output types returned by GraphQL queries and mutations,
-including result types, metadata, job status, and engine information.
+This module defines the structured response objects returned by GraphQL
+queries and mutations. It handles the "Output" side of the single source
+of truth, ensuring that metadata, results, and job statuses remain
+consistent across all translation and TTS operations.
 """
 
-import strawberry
-from typing import List, Optional, Union
 from enum import Enum
+from typing import List, Optional, Union
+
+import strawberry
 
 
 # =========================== Job Status Types =========================== #
 
+
 @strawberry.enum
 class JobStatusEnum(Enum):
     """Status of an asynchronous job."""
+
     QUEUED = "QUEUED"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
@@ -24,6 +29,7 @@ class JobStatusEnum(Enum):
 @strawberry.type
 class JobProgress:
     """Progress information for a running job."""
+
     percentage: float
     current_chunk: int
     total_chunks: int
@@ -34,6 +40,7 @@ class JobProgress:
 @strawberry.type
 class JobStatus:
     """Status and progress of an asynchronous job."""
+
     job_id: str
     status: JobStatusEnum
     progress: JobProgress
@@ -43,9 +50,11 @@ class JobStatus:
 
 # =========================== TTS Output Types =========================== #
 
+
 @strawberry.type
 class TTSMetadata:
-    """Metadata about TTS processing."""
+    """Metadata about TTS processing, including engine info and audio duration."""
+
     engine_used: str
     total_chunks: int
     total_duration_seconds: float
@@ -54,7 +63,8 @@ class TTSMetadata:
 
 @strawberry.type
 class TTSResult:
-    """Result of a TTS generation operation."""
+    """Result of a TTS generation operation, returning a list of generated file paths."""
+
     success: bool
     message: str
     output_files: List[str]  # Paths to generated MP3 files
@@ -63,9 +73,11 @@ class TTSResult:
 
 # =========================== Translation Output Types =========================== #
 
+
 @strawberry.type
 class TranslationMetadata:
-    """Metadata about translation processing."""
+    """Metadata about translation processing, tracking languages and output location."""
+
     engine_used: str
     source_language: str
     target_language: str
@@ -75,7 +87,8 @@ class TranslationMetadata:
 
 @strawberry.type
 class TranslationResult:
-    """Result of a translation operation."""
+    """Result of a translation operation, returning the final translated file path."""
+
     success: bool
     message: str
     output_file: str  # Path to translated text file
@@ -84,9 +97,11 @@ class TranslationResult:
 
 # =========================== Engine Information Types =========================== #
 
+
 @strawberry.type
 class EngineDetail:
-    """Detailed information about an available engine."""
+    """Detailed information about an available engine and its required parameters."""
+
     name: str
     description: str
     required_parameters: List[str]
@@ -95,19 +110,29 @@ class EngineDetail:
 
 @strawberry.type
 class EngineInfo:
-    """Information about available TTS and translation engines."""
+    """Information about available TTS and translation engines filtered by server config."""
+
     tts_engines: List[EngineDetail]
     translation_engines: List[EngineDetail]
 
 
 # =========================== File Download Types =========================== #
 
+
 @strawberry.type
 class FileDownload:
-    """File content or download URL for a generated file."""
+    """File metadata and delivery mechanism (URL or Base64 content)."""
+
     file_id: str
     filename: str
     content_type: str
     size_bytes: int
     download_url: Optional[str] = None
     content: Optional[str] = None  # Base64 encoded content for small files
+
+
+@strawberry.type
+class TranslationResultWithFile(TranslationResult):
+    """Extended translation result with direct file download."""
+
+    file_download: Optional[FileDownload] = None

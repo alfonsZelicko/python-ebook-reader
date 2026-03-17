@@ -59,13 +59,13 @@ Examples:
     if args.generate_env:
         try:
             ServerConfig.generate_env_template(".env.server")
-            print("✓ Successfully generated .env.server template")
+            print("[OK] Successfully generated .env.server template")
             print("\nNext steps:")
             print("1. Review and customize the configuration in .env.server")
             print("2. Start the server with: python start_server.py")
             return
         except Exception as e:
-            print(f"✗ Failed to generate .env.server template: {e}")
+            print(f"[FAIL] Failed to generate .env.server template: {e}")
             sys.exit(1)
 
     # Start the server
@@ -100,7 +100,7 @@ Examples:
             timeout_keep_alive=config.request_timeout_seconds,
         )
     except Exception as e:
-        print(f"✗ Failed to start server: {e}")
+        print(f"[FAIL] Failed to start server: {e}")
         sys.exit(1)
 
 

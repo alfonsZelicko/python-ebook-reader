@@ -23,6 +23,7 @@ from server.graphql.types import (
     FileDownload,
     TTSResult,
     TranslationResult,
+    TranslationResultWithFile,
 )
 from server.graphql.types import TTSInput, TranslationInput
 
@@ -444,9 +445,9 @@ class Mutation:
     @strawberry.mutation
     async def generate_speech(
             self,
-            info: strawberry.Info,
             input: TTSInput,
             async_mode: bool = False,
+            info: strawberry.Info = None,
     ) -> Union[TTSResult, ResolverJobCreated]:
         """
         Generates speech from text using the specified TTS engine.
@@ -479,15 +480,16 @@ class Mutation:
             }
             ```
         """
-        return await ResolverMutation.generate_speech(self, input, async_mode, info)
+        resolver = ResolverMutation()
+        return await resolver.generate_speech(input, async_mode, info)
 
     @strawberry.mutation
     async def translate_text(
             self,
-            info: strawberry.Info,
             input: TranslationInput,
             async_mode: bool = False,
-    ) -> Union[TranslationResult, ResolverJobCreated]:
+            info: strawberry.Info = None,
+    ) -> Union[TranslationResultWithFile, ResolverJobCreated]:
         """
         Translates text from source language to target language.
 
@@ -497,7 +499,7 @@ class Mutation:
             async_mode: Execute asynchronously and return job ID (default: False)
 
         Returns:
-            TranslationResult: Result with output file and metadata (if async_mode=False)
+            TranslationResultWithFile: Result with output file and metadata (if async_mode=False)
             JobCreated: Job information for status tracking (if async_mode=True)
 
         Example mutation (synchronous):
@@ -511,16 +513,23 @@ class Mutation:
                   textContent: "Hello world"
                 }
               ) {
-                ... on TranslationResult {
+                ... on TranslationResultWithFile {
                   success
                   message
                   outputFile
+                  fileDownload {
+                    fileId
+                    filename
+                    downloadUrl
+                    content
+                  }
                 }
               }
             }
             ```
         """
-        return await ResolverMutation.translate_text(self, input, async_mode, info)
+        resolver = ResolverMutation()
+        return await resolver.translate_text(input, async_mode, info)
 
 # =========================== Schema Definition =========================== #
 

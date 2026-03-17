@@ -1,5 +1,9 @@
 """GraphQL type definitions (inputs and outputs)."""
 
+from server.graphql.types.inputs import (
+    TTSInput,
+    TranslationInput,
+)
 from server.graphql.types.outputs import (
     JobStatusEnum,
     JobProgress,
@@ -8,6 +12,7 @@ from server.graphql.types.outputs import (
     TTSResult,
     TranslationMetadata,
     TranslationResult,
+    TranslationResultWithFile,
     EngineDetail,
     EngineInfo,
     FileDownload,
@@ -21,7 +26,10 @@ __all__ = [
     "TTSResult",
     "TranslationMetadata",
     "TranslationResult",
+    "TranslationResultWithFile",
     "EngineDetail",
     "EngineInfo",
     "FileDownload",
+    "TTSInput",
+    "TranslationInput",
 ]

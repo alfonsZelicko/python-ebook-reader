@@ -2,8 +2,10 @@ import sys
 
 import questionary
 
+
 # this is a POC only -> it works not well at this moment
 
+# IT IS NOT DONE! IT IS NOT EVEN BETA! :-)
 def run_config_wizard(config_defs):
     print("\n--- 🧙 TTS Reader Interactive Wizard ---\n")
     results = {}

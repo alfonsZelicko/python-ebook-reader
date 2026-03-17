@@ -22,7 +22,7 @@ description = "Modular TTS engine supporting offline (pyttsx3, Coqui) and online
 requires-python = ">=3.11"
 license = "MIT"
 authors = [
-    {name = "Alfons Zelicko", email = "zelicko.alfons@gmail.com"}
+    { name = "Alfons Zelicko", email = "zelicko.alfons@gmail.com" }
 ]
 
 # 1. CORE DEPENDENCIES
@@ -42,15 +42,16 @@ dependencies = [
     "grpcio-status~=1.76.0",
     "idna~=3.11",
     "proto-plus~=1.26.1",
-    "protobuf~=6.33.1",
+    #"protobuf~=6.33.1",
+    "protobuf>=5.29.6",
     "pyasn1~=0.6.1",
     "pyasn1-modules~=0.4.2",
     "requests~=2.32.5",
     "urllib3~=2.5.0",
     "colorama~=0.4.6",
     "rsa~=4.9.1",
-    "openai~=1.0.0",
-    "google-generativeai~=0.3.0",
+    "openai>=1.0.0",
+    "google-genai>=0.3.0",
     "deepl~=1.16.0",
     "poethepoet~=0.31.0",
 ]

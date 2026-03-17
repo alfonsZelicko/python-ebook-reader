@@ -4,11 +4,13 @@ import sys
 from typing import List
 
 from core.translator_engines import BaseTranslationEngine
-from utils.progress import ProgressManager
+from utils.progress_manager import ProgressManager
 from utils.text_processor import chunk_text
 
 
-def start_translation(file_path: str, translation_engine: BaseTranslationEngine, args: argparse.Namespace):
+def start_translation(
+    file_path: str, translation_engine: BaseTranslationEngine, args: argparse.Namespace
+):
     """
     Orchestrates the complete translation process.
 
@@ -32,7 +34,7 @@ def start_translation(file_path: str, translation_engine: BaseTranslationEngine,
 
     # 1. READ INPUT FILE
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             input_text = f.read()
     except FileNotFoundError:
         print(f"\nERROR: Input file not found: {file_path}")
@@ -62,16 +64,20 @@ def start_translation(file_path: str, translation_engine: BaseTranslationEngine,
         # Resume from previous progress
         start_chunk_index = progress_manager.get_last_chunk_index + 1
         # Load previously translated chunks if available
-        if 'translated_chunks' in progress_manager.state:
-            translated_chunks = progress_manager.state['translated_chunks']
-            print(f"Resuming from chunk {start_chunk_index} ({len(translated_chunks)} chunks already translated)")
+        if "translated_chunks" in progress_manager.state:
+            translated_chunks = progress_manager.state["translated_chunks"]
+            print(
+                f"Resuming from chunk {start_chunk_index} ({len(translated_chunks)} chunks already translated)"
+            )
 
     # 4. SPLIT TEXT INTO CHUNKS
     chunks = chunk_text(input_text, args.CS, chunk_by_paragraph=args.CP)
     total_chunks = len(chunks)
-    
+
     chunk_mode = "paragraph-aware" if args.CP else "sentence-based"
-    print(f"Text split into {total_chunks} chunks ({chunk_mode}, max {args.CS} characters each)\n")
+    print(
+        f"Text split into {total_chunks} chunks ({chunk_mode}, max {args.CS} characters each)\n"
+    )
 
     # 5. TRANSLATE EACH CHUNK
     for i in range(start_chunk_index, total_chunks):
@@ -92,15 +98,15 @@ def start_translation(file_path: str, translation_engine: BaseTranslationEngine,
             # Update progress after successful translation
             # Note: We're adapting ProgressManager which was designed for TTS
             # For translation, we store translated_chunks in the state
-            progress_manager.state['translated_chunks'] = translated_chunks
+            progress_manager.state["translated_chunks"] = translated_chunks
             progress_manager.update_state(last_chunk_index=i, last_mp3_index=0)
 
-            print(f"✓ Chunk {i + 1} translated successfully")
+            print(f"[OK] Chunk {i + 1} translated successfully")
 
         except Exception as e:
             # Error already logged in translation_engine
             # Continue with next chunk
-            print(f"✗ Chunk {i + 1} failed - continuing with next chunk")
+            print(f"[FAIL] Chunk {i + 1} failed - continuing with next chunk")
             translated_chunks.append(f"[TRANSLATION FAILED FOR CHUNK {i + 1}]")
             continue
 
@@ -109,15 +115,17 @@ def start_translation(file_path: str, translation_engine: BaseTranslationEngine,
     print("Translation complete! Writing output file...")
     print(f"{'='*70}\n")
 
-    output_filename = os.path.splitext(os.path.basename(file_path))[0] + "_translated.txt"
+    output_filename = (
+        os.path.splitext(os.path.basename(file_path))[0] + "_translated.txt"
+    )
     output_path = os.path.join(output_dir, output_filename)
 
     try:
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             # Join chunks with newlines to preserve structure
-            f.write('\n'.join(translated_chunks))
+            f.write("\n".join(translated_chunks))
 
-        print(f"✓ Output file created: {output_path}")
+        print(f"[OK] Output file created: {output_path}")
         print(f"  Total chunks: {len(translated_chunks)}")
         print(f"  Output size: {os.path.getsize(output_path)} bytes")
 
@@ -128,7 +136,8 @@ def start_translation(file_path: str, translation_engine: BaseTranslationEngine,
 
     # 7. CLEAN UP PROGRESS FILE
     progress_manager.delete_state()
-    print("\n✓ Translation completed successfully!")
+    print("\n[OK] Translation completed successfully!")
+    # return output_path
 
 
 def _create_progress_bar(current: int, total: int, width: int = 40) -> str:
@@ -145,6 +154,6 @@ def _create_progress_bar(current: int, total: int, width: int = 40) -> str:
     """
     progress = current / total
     filled = int(width * progress)
-    bar = '█' * filled + '░' * (width - filled)
+    bar = "#" * filled + "-" * (width - filled)
     percent = int(progress * 100)
     return f"Progress: [{bar}] {percent}% ({current}/{total})"

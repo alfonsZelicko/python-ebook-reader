@@ -5,8 +5,10 @@ Dynamically generates GraphQL input types from existing argument definitions
 to maintain a single source of truth between CLI arguments and GraphQL schema.
 """
 
-from typing import Type, List, Dict, Any, Optional
+import logging
 from enum import Enum
+from typing import Type, List, Dict, Any, Optional
+
 import strawberry
 from strawberry.file_uploads import Upload
 
@@ -14,181 +16,110 @@ from strawberry.file_uploads import Upload
 class SchemaGenerator:
     """Generates Strawberry GraphQL input types from configuration definitions."""
 
+    def __init__(self, logger: logging.Logger):
+        self.logger = logger
+
     @staticmethod
-    def generate_input_type(
-        config_defs: List[Dict[str, Any]],
-        type_name: str
-    ) -> Type:
+    def generate_input_type(config_defs: List[Dict[str, Any]], type_name: str) -> Type:
         """
         Generates a Strawberry input type from config definitions.
-
-        Args:
-            config_defs: List of parameter definitions (TTS_CONFIG_DEFS or TRANSLATOR_CONFIG_DEFS)
-            type_name: Name for the generated type (e.g., "TTSInput")
-
-        Returns:
-            Dynamically created Strawberry input class
-
-        Process:
-        1. Create field dictionary from config_defs
-        2. Map Python types to GraphQL types
-        3. Generate Enums for 'choices' fields
-        4. Add file_upload and text_content fields
-        5. Create Strawberry input class with type()
         """
-        fields = {}
-        
-        # Add input source fields first
-        fields['text_content'] = Optional[str]
-        fields['file_upload'] = Optional[Upload]
-        
-        # Process each config definition
-        for config in config_defs:
-            field_name = SchemaGenerator._convert_key_to_field_name(config['key'])
-            
-            # Handle choices - create enum type
-            if 'choices' in config and config['choices']:
-                enum_name = f"{type_name}{field_name.title().replace('_', '')}Enum"
-                enum_type = SchemaGenerator._create_enum_from_choices(
-                    enum_name, 
-                    config['choices']
-                )
-                field_type = enum_type
-            else:
-                # Map Python type to GraphQL type
-                py_type = config.get('type', str)
-                field_type = SchemaGenerator._map_python_type_to_graphql(py_type)
-            
-            # Handle boolean flags with action='store_true'
-            if config.get('action') == 'store_true':
-                field_type = bool
-            
-            # Get default value
-            default_value = config.get('default')
-            
-            # Store field with type and default
-            fields[field_name] = (field_type, default_value)
-        
-        # Create the input class dynamically
-        # We need to create annotations dict and set defaults
-        annotations = {}
-        defaults = {}
-        
-        for field_name, field_info in fields.items():
-            if isinstance(field_info, tuple):
-                field_type, default_value = field_info
-                annotations[field_name] = field_type
-                defaults[field_name] = default_value
-            else:
-                # For Optional fields without defaults
-                annotations[field_name] = field_info
-                defaults[field_name] = None
-        
-        # Create the class
-        namespace = {
-            '__annotations__': annotations,
-            **defaults
+        annotations = {
+            "text_content": Optional[str],
+            "file_upload": Optional[Upload],
         }
-        
-        input_class = type(type_name, (), namespace)
-        
-        # Decorate with strawberry.input
+        namespace = {
+            "text_content": None,
+            "file_upload": None,
+        }
+
+        # List if params that should be UNSET in GraphQL
+        CORE_ENV_PARAMS = [
+            # Translator
+            "TE",
+            # "SL",
+            # "TL",
+            "O_KEY",
+            "G_KEY",
+            "D_KEY",
+            "O_MODEL",
+            "G_MODEL",
+            # TTS
+            "L_CODE",
+            "G_VOICE",
+            "OFF_VOICE",
+            "C_MODEL",
+            "C_SPEAKER",
+            "C_WAV",
+        ]
+
+        for config in config_defs:
+            # field_name = SchemaGenerator._convert_key_to_field_name(config["key"])
+            field_name = config["long_name"].lower().replace("-", "_")
+
+            # 1. Determine the Field Type
+            if "choices" in config and config["choices"]:
+                enum_name = f"{type_name}{''.join(x.capitalize() for x in field_name.split('_'))}Enum"
+                field_type = SchemaGenerator._create_enum_from_choices(
+                    enum_name, config["choices"]
+                )
+            else:
+                py_type = config.get("type", str)
+                field_type = py_type if py_type in (str, int, float, bool) else str
+
+            # 2. Handle specific argument actions
+            if config.get("action") == "store_true":
+                field_type = bool
+
+            # 3. Handle Optionality & Defaults
+            # If it's a core parameter like 'translationEngine' (TE), we might want it required
+            # or keep it Optional to fall back to global defaults.
+            field_type = Optional[field_type]
+
+            # 4. Create the Strawberry Field with description
+            description = config.get("help", "")
+            # default_value = config.get("default")
+
+            annotations[field_name] = field_type
+            # Strawberry uses strawberry.field for defaults and metadata
+            if config["key"] in CORE_ENV_PARAMS:
+                default_to_use = strawberry.UNSET
+            else:
+                default_to_use = config.get("default", strawberry.UNSET)
+
+            namespace[field_name] = strawberry.field(
+                default=default_to_use, description=config.get("help", "")
+            )
+
+        # Create the class dynamically
+        input_class = type(type_name, (), {"__annotations__": annotations, **namespace})
         return strawberry.input(input_class)
 
     @staticmethod
-    def _map_python_type_to_graphql(py_type: Type) -> Type:
-        """
-        Maps Python types to GraphQL scalar types.
-        
-        Args:
-            py_type: Python type (str, int, float, bool)
-            
-        Returns:
-            Corresponding GraphQL type
-        """
-        type_mapping = {
-            str: str,
-            int: int,
-            float: float,
-            bool: bool
-        }
-        
-        return type_mapping.get(py_type, str)
-
-    @staticmethod
     def _create_enum_from_choices(name: str, choices: List[str]) -> Type[Enum]:
-        """
-        Creates a GraphQL Enum from choices list.
-        
-        Args:
-            name: Name for the enum type
-            choices: List of valid string values
-            
-        Returns:
-            Strawberry enum type
-        """
-        # Create enum members dict
-        enum_members = {choice: choice for choice in choices}
-        
-        # Create the enum class
-        enum_class = Enum(name, enum_members)
-        
-        # Decorate with strawberry.enum
+        # Sanitize choice names (must be valid Python identifiers for Enum)
+        # e.g. "gpt-4" -> "GPT_4"
+        members = {}
+        for choice in choices:
+            clean_name = str(choice).replace("-", "_").replace(".", "_").upper()
+            if clean_name[0].isdigit():
+                clean_name = f"V_{clean_name}"
+            members[clean_name] = choice
+
+        enum_class = Enum(name, members)
         return strawberry.enum(enum_class)
 
     @staticmethod
-    def _convert_key_to_field_name(key: str) -> str:
+    def convert_key_to_field_name(key: str, CONFIG_DEFS: List[Dict[str, Any]]) -> str:
         """
-        Converts short key to GraphQL field name.
-        
-        Examples:
-            TE -> engine
-            CS -> chunk_size
-            G_CRED -> google_credentials
-            OFF_VOICE -> offline_voice
-            
-        Rules:
-        - TE (TTS_ENGINE/TRANSLATION_ENGINE) -> engine
-        - CS (CHUNK_SIZE) -> chunk_size
-        - Convert to snake_case
-        - Use descriptive names based on common patterns
-        
-        Args:
-            key: Short key from config (e.g., "TE", "CS", "G_CRED")
-            
-        Returns:
-            GraphQL field name in snake_case
+        Dynamically converts short key (TE, CS) to descriptive field name
+        using the 'name' attribute from the imported definitions.
         """
-        # Special mappings for common abbreviations
         special_mappings = {
-            'TE': 'engine',
-            'CS': 'chunk_size',
-            'CP': 'chunk_by_paragraph',
-            'SR': 'speaking_rate',
-            'OT': 'output_type',
-            'MFD': 'max_file_duration',
-            'COD': 'clean_output_directory',
-            'OFF_VOICE': 'offline_voice',
-            'L_CODE': 'language_code',
-            'G_CRED': 'google_credentials',
-            'G_VOICE': 'google_voice',
-            'C_MODEL': 'coqui_model',
-            'C_SPEAKER': 'coqui_speaker',
-            'C_WAV': 'coqui_wav',
-            'C_RATE': 'coqui_sample_rate',
-            'SL': 'source_language',
-            'TL': 'target_language',
-            'TP': 'translation_prompt',
-            'O_KEY': 'openai_api_key',
-            'O_MODEL': 'openai_model',
-            'G_MODEL': 'gemini_model',
-            'D_KEY': 'deepl_api_key',
-            'MR': 'max_retries',
-            'RD': 'retry_delay'
+            item["key"]: item["long_name"].lower() for item in CONFIG_DEFS
         }
-        
+
         if key in special_mappings:
             return special_mappings[key]
-        
-        # Fallback: convert to lowercase and replace underscores
+
         return key.lower()
