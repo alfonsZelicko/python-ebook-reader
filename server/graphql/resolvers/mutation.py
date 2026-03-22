@@ -11,6 +11,7 @@ Both mutations support synchronous and asynchronous execution modes.
 from typing import Union, TYPE_CHECKING
 
 import strawberry
+
 from server.graphql.types.outputs import TTSResult, JobStatusEnum, TranslationResultWithFile
 
 if TYPE_CHECKING:
@@ -382,6 +383,7 @@ class Mutation:
             raise ValueError(error_msg)
 
         # Check if engine is specified
+        # TODO here I should ONLY check, if ENGINE is in list of available engines -> rest should be resolved elsewhere
         if not hasattr(input, "engine") or not input.engine:
             error_msg = "TTS engine must be specified"
             logger.warning(f"TTS validation failed: {error_msg}")

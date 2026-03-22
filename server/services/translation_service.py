@@ -9,6 +9,7 @@ import base64
 import logging
 import os
 import uuid
+import zipfile
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -94,6 +95,7 @@ class TranslationService:
 
             # 7. Result Processing
             output_file = self._get_output_file(temp_input_file)
+            output_file = self._compress_output(output_file)
             total_chunks = self._estimate_chunks(output_file)
 
             metadata = TranslationMetadata(
@@ -151,7 +153,7 @@ class TranslationService:
 
         return str(file_path)
 
-    def _get_output_file(self, input_file: str) -> str:
+    def _get_output_file(self, input_file: str) -> Path:
         input_path = Path(input_file)
         work_dir = get_work_directory(input_file, str(self.temp_dir))
         output_file = get_translated_file_path(work_dir, input_path.stem)
@@ -160,7 +162,7 @@ class TranslationService:
             self.logger.error(f"Processor did not create output at {output_file}")
             raise FileNotFoundError(f"Processor did not create output at {output_file}")
 
-        return str(output_file)
+        return output_file
 
     def _create_file_download(self, file_path: str) -> FileDownload:
         """Create FileDownload object for direct file access."""
@@ -190,9 +192,43 @@ class TranslationService:
         )
 
     @staticmethod
-    def _estimate_chunks(output_file: str) -> int:
+    def _estimate_chunks(output_file: Path) -> int:
         try:
             with open(output_file, "r", encoding="utf-8") as f:
                 return len([line for line in f if line.strip()])
         except:
             return 0
+
+    def _compress_output(self, output_file: Path, rm_old=True, zip_always=True) -> Path:
+        output_dir = output_file.parent
+
+        translated_files = [
+            p for p in output_dir.iterdir() if p.is_file() and p.suffix != ".zip"
+        ]
+
+        if len(translated_files) <= 1 and not zip_always:
+            self.logger.info(f"No compression needed: {output_file}")
+            return Path(output_file)
+
+        zip_path = output_dir / f"{output_dir.name}_translations.zip"
+
+        try:
+            with zipfile.ZipFile(
+                zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6
+            ) as zipf:
+                for file_path in translated_files:
+                    if file_path != zip_path:
+                        zipf.write(file_path, file_path.name)
+
+        except Exception as e:
+            raise RuntimeError("Failed to create ZIP archive") from e
+
+        if rm_old:
+            for file_path in translated_files:
+                if file_path != zip_path:
+                    try:
+                        file_path.unlink()
+                    except Exception as e:
+                        self.logger.warning(f"Failed to remove {file_path}: {e}")
+
+        return zip_path
