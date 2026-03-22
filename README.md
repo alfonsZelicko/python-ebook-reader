@@ -13,21 +13,11 @@ audiobook generation, and API-driven workflows.
 
 The project consists of three main components:
 
-  -----------------------------------------------------------------------
-Component Description
-  ----------------------------------- -----------------------------------
-**TTS Reader**                      Converts large text files into
-speech using offline and cloud
-engines
-
-**AI Translator [BETA]**                   Translates large texts using AI
-models with chunking and resume
-support
-
-**GraphQL Server [BETA]**                  Provides an API layer for
-automation and external
-applications
-  -----------------------------------------------------------------------
+| Component                 | Description                                                             |
+|---------------------------|-------------------------------------------------------------------------|
+| **TTS Reader**            | Converts large text files into speech using offline and cloud engines   |
+| **AI Translator [BETA]**  | Translates large texts using AI models with chunking and resume support |
+| **GraphQL Server [BETA]** | Provides an API layer for automation and external applications          |
 
 Each component can be used **independently** or combined together.
 
@@ -357,8 +347,8 @@ flowchart TD
     classDef core fill: #e8f5e8, stroke: #1b5e20, stroke-width: 2px
     classDef decision fill: #fff3e0, stroke: #e65100, stroke-width: 2px
 class GQL_Start, GQL_Validate, GQL_Async, GQL_CreateJob, GQL_JobCreated, GQL_Background, GQL_Sync, GQL_Service, GQL_Prepare, GQL_Resolve, GQL_Engine, GQL_Process, GQL_Result, GQL_File, GQL_Return graphql
-class CLI_Start,CLI_Parse, CLI_Validate, CLI_Engine, CLI_Process, CLI_Complete cli
-class Core_Read,Core_Chunk, Core_Progress, Core_Translate, Core_Write, Core_Cleanup core
+class CLI_Start, CLI_Parse, CLI_Validate, CLI_Engine, CLI_Process, CLI_Complete cli
+class Core_Read, Core_Chunk,Core_Progress, Core_Translate, Core_Write, Core_Cleanup core
 class GQL_Async decision
 ```
 
