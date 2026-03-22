@@ -68,7 +68,7 @@ Supported engines:
 Supported engines:
 
 - `OPENAI`[BETA]
-- `GEMINI`
+- `GEMINI` [only properly tested]
 - `DEEPL`[BETA]
 
 The translator processes long documents safely by splitting them into
@@ -356,10 +356,10 @@ flowchart TD
     classDef cli fill: #f3e5f5, stroke: #4a148c, stroke-width: 2px
     classDef core fill: #e8f5e8, stroke: #1b5e20, stroke-width: 2px
     classDef decision fill: #fff3e0, stroke: #e65100, stroke-width: 2px
-    class GQL_Start, GQL_Validate, GQL_Async, GQL_CreateJob, GQL_JobCreated, GQL_Background, GQL_Sync, GQL_Service, GQL_Prepare, GQL_Resolve, GQL_Engine, GQL_Process, GQL_Result, GQL_File, GQL_Return graphql
-    class CLI_Start, CLI_Parse, CLI_Validate, CLI_Engine, CLI_Process, CLI_Complete cli
-    class Core_Read, Core_Chunk, Core_Progress, Core_Translate, Core_Write, Core_Cleanup core
-    class GQL_Async decision
+class GQL_Start, GQL_Validate, GQL_Async, GQL_CreateJob, GQL_JobCreated, GQL_Background, GQL_Sync, GQL_Service, GQL_Prepare, GQL_Resolve, GQL_Engine, GQL_Process, GQL_Result, GQL_File, GQL_Return graphql
+class CLI_Start,CLI_Parse, CLI_Validate, CLI_Engine, CLI_Process, CLI_Complete cli
+class Core_Read,Core_Chunk, Core_Progress, Core_Translate, Core_Write, Core_Cleanup core
+class GQL_Async decision
 ```
 
 ------------------------------------------------------------------------

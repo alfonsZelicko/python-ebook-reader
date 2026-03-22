@@ -181,7 +181,6 @@ class TranslationService:
 
         translated_suffix = "_translated.txt"
 
-        # TODO #32: make the "download_url" in better way, when rest will work properly :-)
         return FileDownload(
             file_id=str(uuid.uuid4()),
             filename=path.name,
@@ -196,7 +195,7 @@ class TranslationService:
         try:
             with open(output_file, "r", encoding="utf-8") as f:
                 return len([line for line in f if line.strip()])
-        except:
+        except OSError:
             return 0
 
     def _compress_output(self, output_file: Path, rm_old=True, zip_always=True) -> Path:
