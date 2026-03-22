@@ -299,6 +299,76 @@ Core logic lives in `core/`, while CLI tools act as entry points.
 
 ------------------------------------------------------------------------
 
+How it works in flow diagram:
+
+```mermaid
+flowchart TD
+
+    %% Shared Translation Core
+    subgraph CORE[Translation Core]
+        CORE_Engine[Initialize Translation Engine]
+        CORE_Process[Start Translation Process]
+        CORE_Engine --> CORE_Process
+    end
+
+    %% GraphQL Flow
+    subgraph GraphQL[GraphQL Translation Flow]
+        GQL_Start[GraphQL Request] --> GQL_Validate[Validate Input Parameters]
+        GQL_Validate --> GQL_Async{Async Mode?}
+        
+        GQL_Async -->|Yes| GQL_CreateJob[Create Job via JobManager]
+        GQL_Async -->|No| GQL_Sync[Execute Synchronously]
+        
+        GQL_CreateJob --> GQL_JobCreated[Return JobCreated Response]
+        GQL_JobCreated --> GQL_Background[Background Execution]
+        
+        GQL_Sync --> GQL_Prepare[Prepare Temporary Input File]
+        GQL_Background --> GQL_Prepare
+        
+        GQL_Prepare --> GQL_Resolve[Resolve Arguments]
+        GQL_Resolve --> CORE_Engine
+        
+        CORE_Process --> GQL_Result[Process Translation Result]
+        GQL_Result --> GQL_File[Create File Download Object]
+        GQL_File --> GQL_Return[Return TranslationResultWithFile]
+    end
+
+    %% CLI Flow
+    subgraph CLI[CLI Translation Flow]
+        CLI_Start[CLI Command] --> CLI_Parse[Parse Arguments]
+        CLI_Parse --> CLI_Validate[Validate Pre-execution Actions]
+        CLI_Validate --> CORE_Engine
+        
+        CORE_Process --> CLI_Complete[Complete Translation]
+    end
+    
+    %% Shared Translation Process
+    subgraph Core[Core Translation Process]
+        Core_Read[Read Input File] --> Core_Chunk[Split Text into Chunks]
+        Core_Chunk --> Core_Progress[Initialize Progress Manager]
+        Core_Progress --> Core_Translate[Translate Each Chunk]
+        Core_Translate --> Core_Write[Write Output File]
+        Core_Write --> Core_Cleanup[Clean Up Progress File]
+    end
+    
+    %% Connections
+    GQL_Process --> Core_Read
+    CLI_Process --> Core_Read
+    
+    %% Styling
+    classDef graphql fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef cli fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef core fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef decision fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    
+    class GQL_Start,GQL_Validate,GQL_Async,GQL_CreateJob,GQL_JobCreated,GQL_Background,GQL_Sync,GQL_Service,GQL_Prepare,GQL_Resolve,GQL_Engine,GQL_Process,GQL_Result,GQL_File,GQL_Return graphql
+    class CLI_Start,CLI_Parse,CLI_Validate,CLI_Engine,CLI_Process,CLI_Complete cli
+    class Core_Read,Core_Chunk,Core_Progress,Core_Translate,Core_Write,Core_Cleanup core
+    class GQL_Async decision
+```
+
+------------------------------------------------------------------------
+
 # Development Status
 
 Current focus areas:
