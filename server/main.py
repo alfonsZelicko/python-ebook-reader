@@ -14,7 +14,7 @@ from typing import Optional
 import uvicorn
 
 from server.core.config import ServerConfig
-from server.handlers import file_handler
+from server.handlers.file_handler import FileHandler
 
 # Add project root to Python path to import core modules
 project_root = Path(__file__).parent.parent
@@ -68,6 +68,9 @@ def create_app(config: Optional["ServerConfig"] = None) -> "FastAPI":
 
     # Initialize TTS Service
     tts_service = TTSService(config, logger)
+
+    # Initialize File Handler
+    file_handler = FileHandler(config, logger)
 
     logger.info("=" * 80)
     logger.info("GraphQL Server Initialization")

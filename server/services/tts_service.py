@@ -6,7 +6,6 @@ Handles speech generation by invoking the core tts_processor.
 import logging
 import os
 import uuid
-from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable, List
 
@@ -46,32 +45,35 @@ class TTSService:
         try:
             temp_input_file = await self._prepare_input_file(input_data)
 
+            from dataclasses import asdict
+
+            raw_input_data = asdict(input_data)
+
             provided_data = {}
             for field_name, short_key in self._field_to_key.items():
-                val = getattr(input_data, field_name, None)
-                if val is not None:
-                    # Handle Strawberry Enums if present
-                    provided_data[short_key] = (
-                        val.value if hasattr(val, "value") else val
-                    )
+                if field_name in raw_input_data:
+                    val = raw_input_data[field_name]
+                    if val is not None:
+                        provided_data[short_key] = (
+                            val.value if hasattr(val, "value") else val
+                        )
 
             args = resolve_args(mode="TTS", provided_data=provided_data)
 
             args.INPUT_FILE_PATH = temp_input_file
 
-            if not getattr(args, "OT", None):
-                args.OT = "FILE"
+            # if not getattr(args, "OT", None): # its ALWAYS file :-)
+            args.OT = "FILE"
 
             self._validate_server_constraints(args.TE)
-
             validate_pre_execution_actions(args, mode="TTS")
 
             tts_engine = initialize_tts_engine(args)
 
-            start_time = datetime.now()
+            # start_time = datetime.now()
             # Processor handles the splitting and audio generation
             start_processing(temp_input_file, tts_engine, args)
-            end_time = datetime.now()
+            # end_time = datetime.now()
 
             output_files = self._collect_output_files(temp_input_file)
             total_duration = self._calculate_total_duration(output_files)
@@ -92,7 +94,6 @@ class TTSService:
 
         except Exception as e:
             self.logger.error(f"TTS generation failed: {str(e)}", exc_info=True)
-            # GraphQL will catch this ValueError and return it to the user
             raise ValueError(str(e))
 
         finally:

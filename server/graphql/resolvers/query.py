@@ -85,7 +85,7 @@ class Query:
     - File downloads
     """
 
-    @strawberry.field
+    @strawberry.field  # type: ignore
     async def available_engines(self, info: strawberry.Info) -> EngineInfo:
         """
         Returns lists of available TTS and translation engines.
@@ -143,7 +143,7 @@ class Query:
             tts_engines=tts_engines, translation_engines=translation_engines
         )
 
-    @strawberry.field
+    @strawberry.field  # type: ignore
     async def job_status(self, job_id: str, info: strawberry.Info) -> JobStatus:
         """
         Returns current status and progress of a job.
@@ -164,12 +164,22 @@ class Query:
         Example query:
         ```graphql
             query {
-              jobStatus(jobId: "example-id") {
-                jobId
+              jobStatus(jobId: "job-status-id") {
                 status
                 progress {
                   percentage
                   stage
+                }
+                result {
+                  ... on TranslationResultWithFile {
+                    outputFile
+                    fileDownload {
+                      fileId
+                      filename
+                      downloadUrl
+                      content
+                    }
+                  }
                 }
               }
             }
@@ -194,7 +204,7 @@ class Query:
 
             return job_status
 
-        except KeyError as e:
+        except KeyError:
             error_msg = f"Job not found: {job_id}"
             logger.warning(error_msg)
             raise Exception(error_msg)
@@ -203,7 +213,7 @@ class Query:
             logger.error(error_msg, exc_info=True)
             raise Exception(error_msg)
 
-    @strawberry.field
+    @strawberry.field  # type: ignore
     async def download_file(self, file_id: str, info: strawberry.Info) -> FileDownload:
         """
         Returns file content or download URL for a generated file.
@@ -264,11 +274,11 @@ class Query:
                 content=content_base64,
             )
 
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             error_msg = f"File not found: {file_id}"
             logger.warning(error_msg)
             raise Exception(error_msg)
         except Exception as e:
-            error_msg = f"Failed to retrieve file for download: {str(e)}"
+            error_msg = f"Unable to retrieve the file for download: {str(e)}"
             logger.error(error_msg, exc_info=True)
             raise Exception(error_msg)

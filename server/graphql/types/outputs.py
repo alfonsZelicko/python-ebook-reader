@@ -44,7 +44,7 @@ class JobStatus:
     job_id: str
     status: JobStatusEnum
     progress: JobProgress
-    result: Optional[Union["TTSResult", "TranslationResult"]] = None
+    result: Optional[Union["TTSResult", "TranslationResultWithFile"]] = None
     error: Optional[str] = None
 
 

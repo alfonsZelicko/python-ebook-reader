@@ -11,13 +11,12 @@
 # - the file is used (at this point) in env_generator.py & args_manager.py - to unify place with possible params for the script
 
 TTS_CONFIG_DEFS = [
+    # --- CORE CONFIGURATION & CONTROL ---
     {
         "key": "TE",
-        "long_name": "TTS_ENGINE",  # <--- Tohle tam musí být
+        "long_name": "TTS_ENGINE",
         "default": "ONLINE",
         "type": str,
-        "help_text": "Sets the TTS engine to use.",
-        "group": "CORE CONFIGURATION & CONTROL",
         "choices": ["OFFLINE", "ONLINE", "G_CLOUD", "COQUI", "ELEVENLABS"],
         "engines": ["ALL"],
     },
@@ -26,7 +25,6 @@ TTS_CONFIG_DEFS = [
         "long_name": "CHUNK_SIZE",
         "default": 3500,
         "type": int,
-        "group": "CORE CONFIGURATION & CONTROL",
         "engines": ["ALL"],
     },
     {
@@ -34,7 +32,6 @@ TTS_CONFIG_DEFS = [
         "long_name": "CHUNK_BY_PARAGRAPH",
         "default": False,
         "action": "store_true",
-        "group": "CORE CONFIGURATION & CONTROL",
         "engines": ["ALL"],
     },
     {
@@ -42,67 +39,97 @@ TTS_CONFIG_DEFS = [
         "long_name": "SPEAKING_RATE",
         "default": 1.1,
         "type": float,
-        "group": "CORE CONFIGURATION & CONTROL",
         "engines": ["ALL"],
     },
+    # --- OUTPUT CONFIGURATION ---
     {
         "key": "OT",
         "long_name": "OUTPUT_TYPE",
         "default": "AUDIO",
         "type": str,
         "choices": ["AUDIO", "FILE"],
-        "group": "OUTPUT CONFIGURATION",
         "engines": ["ALL"],
     },
     {
-        "key": "OFF_VOICE",
-        "long_name": "OFFLINE_VOICE_ID",
-        "default": "",
-        "group": "OFFLINE ENGINE CONFIGURATION",
-        "engines": ["OFFLINE"],
-    },
-    {
-        "key": "L_CODE",
-        "long_name": "LANGUAGE_CODE",
-        "default": "cs-CZ",
-        "group": "LANGUAGE CONFIGURATION",
-        "engines": ["ONLINE", "G_CLOUD"],
-    },
-    {
-        "key": "G_KEY",
-        "long_name": "G_CLOUD_CREDENTIALS",
-        "default": "./google-key.json",
-        "group": "GOOGLE CLOUD CONFIGURATION",
-        "engines": ["G_CLOUD"],
-    },
-    {
-        "key": "G_VOICE",
-        "long_name": "WAVENET_VOICE",
-        "default": "cs-CZ-Standard-B",
-        "group": "GOOGLE CLOUD CONFIGURATION",
-        "engines": ["G_CLOUD"],
-    },
-    {
-        "key": "C_MODEL",
-        "long_name": "COQUI_MODEL_NAME",
-        "default": "tts_models/multilingual/multi-dataset/xtts_v2",
-        "group": "COQUI CONFIGURATION",
-        "engines": ["COQUI"],
-    },
-    {
-        "key": "EL_CRED",
-        "long_name": "ELEVENLABS_CRED",
-        "default": "",
-        "group": "ELEVENLABS CONFIGURATION",
-        "engines": ["ELEVENLABS"],
+        "key": "MFD",
+        "long_name": "MAX_FILE_DURATION",
+        "default": 600,
+        "type": int,
+        "engines": ["ALL"],
     },
     {
         "key": "COD",
         "long_name": "CLEAN_OUTPUT_DIRECTORY",
         "default": False,
         "action": "store_true",
-        "group": "OUTPUT CONFIGURATION",
         "engines": ["ALL"],
+    },
+    # --- LANGUAGE & VOICES ---
+    {
+        "key": "L_CODE",
+        "long_name": "LANGUAGE_CODE",
+        "default": "cs-CZ",
+        "type": str,
+        "engines": ["ONLINE", "G_CLOUD"],
+    },
+    {
+        "key": "OFF_VOICE",
+        "long_name": "OFFLINE_VOICE_ID",
+        "default": "",
+        "type": str,
+        "engines": ["OFFLINE"],
+    },
+    # --- GOOGLE CLOUD CONFIGURATION ---
+    {
+        "key": "G_KEY",
+        "long_name": "G_CLOUD_CREDENTIALS",
+        "default": "./google-key.json",
+        "type": str,
+        "engines": ["G_CLOUD"],
+    },
+    {
+        "key": "G_VOICE",
+        "long_name": "WAVENET_VOICE",
+        "default": "cs-CZ-Standard-B",
+        "type": str,
+        "engines": ["G_CLOUD"],
+    },
+    # --- COQUI CONFIGURATION ---
+    {
+        "key": "C_MODEL",
+        "long_name": "COQUI_MODEL_NAME",
+        "default": "tts_models/multilingual/multi-dataset/xtts_v2",
+        "type": str,
+        "engines": ["COQUI"],
+    },
+    {
+        "key": "C_SPEAKER",
+        "long_name": "COQUI_SPEAKER_ID",
+        "default": "",
+        "type": str,
+        "engines": ["COQUI"],
+    },
+    {
+        "key": "C_WAV",
+        "long_name": "COQUI_SPEAKER_WAV",
+        "default": "",
+        "type": str,
+        "engines": ["COQUI"],
+    },
+    {
+        "key": "C_RATE",
+        "long_name": "COQUI_SAMPLE_RATE",
+        "default": 22050,
+        "type": int,
+        "engines": ["COQUI"],
+    },
+    # --- ELEVENLABS CONFIGURATION ---
+    {
+        "key": "EL_CRED",
+        "long_name": "ELEVENLABS_CRED",
+        "default": "",
+        "type": str,
+        "engines": ["ELEVENLABS"],
     },
 ]
 

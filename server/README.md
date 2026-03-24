@@ -165,9 +165,9 @@ mutation {
       languageCode: "en-US"
     }
   ) {
-    success
-    message
-    outputFiles
+    ... on JobCreated {
+      jobId
+    }
   }
 }
 ```

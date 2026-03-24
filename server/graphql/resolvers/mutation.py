@@ -8,6 +8,7 @@ This module implements GraphQL mutation resolvers for:
 Both mutations support synchronous and asynchronous execution modes.
 """
 
+import traceback
 from typing import Union, TYPE_CHECKING
 
 import strawberry
@@ -127,7 +128,7 @@ class Mutation:
             f"Mutation: generate_speech (async_mode={async_mode})",
             extra={
                 "async_mode": async_mode,
-                "engine": input.engine if hasattr(input, "engine") else "unknown",
+                "engine": input.engine if hasattr(input, "ttsEngine") else "unknown",
             },
         )
 
@@ -188,6 +189,7 @@ class Mutation:
         except ValueError as e:
             # Validation or processing error
             error_msg = f"TTS generation failed: {str(e)}"
+            print(traceback.format_exc())
             logger.error(error_msg, exc_info=True)
             raise Exception(error_msg)
 
@@ -197,7 +199,7 @@ class Mutation:
             logger.error(error_msg, exc_info=True)
             raise Exception(error_msg)
 
-    @strawberry.mutation
+    @strawberry.mutation  # type: ignore
     async def translate_text(
         self,
         input: "TranslationInput",
@@ -266,17 +268,15 @@ class Mutation:
             mutation {
               translateText(
                 input: {
-                  textContent: "Long text..."
+                  textContent: "Hello world"
                   translationEngine: GEMINI
                   sourceLanguage: "en"
-                  targetLanguage: "de"
+                  targetLanguage: "cs"
                 }
                 asyncMode: true
               ) {
                 ... on JobCreated {
                   jobId
-                  message
-                  status
                 }
               }
             }
@@ -381,14 +381,14 @@ class Mutation:
         has_upload = hasattr(input, "file_upload") and input.file_upload is not None
         has_text = hasattr(input, "text_content") and input.text_content
 
-        if not has_upload and not has_text:
+        if not (has_upload or has_text):
             error_msg = "Either text_content or file_upload must be provided"
             logger.warning(f"TTS validation failed: {error_msg}")
             raise ValueError(error_msg)
 
         # Check if engine is specified
         # TODO here I should ONLY check, if ENGINE is in list of available engines -> rest should be resolved elsewhere
-        if not hasattr(input, "engine") or not input.engine:
+        if not hasattr(input, "tts_engine") or not input.tts_engine:
             error_msg = "TTS engine must be specified"
             logger.warning(f"TTS validation failed: {error_msg}")
             raise ValueError(error_msg)
