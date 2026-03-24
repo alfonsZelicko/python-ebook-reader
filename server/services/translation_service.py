@@ -50,7 +50,7 @@ class TranslationService:
         Handles translation by invoking existing translator_processor logic.
 
         Args:
-            input_data: GraphQL input data containing translation parameters.
+            input_data: GraphQL input_data data containing translation parameters.
             progress_callback: Optional callback for progress updates.
                 usage smthng like:
                 ```python
@@ -94,25 +94,25 @@ class TranslationService:
             end_time = datetime.now()
 
             # 7. Result Processing
-            output_file = self._get_output_file(temp_input_file)
-            output_file = self._compress_output(output_file)
-            total_chunks = self._estimate_chunks(output_file)
+            txt_output_file = self._get_output_file(temp_input_file)
+            total_chunks = self._estimate_chunks(txt_output_file)
+            final_output_file = self._compress_output(txt_output_file)
 
             metadata = TranslationMetadata(
                 engine_used=args.TE,
                 source_language=args.SL,
                 target_language=args.TL,
                 total_chunks=total_chunks,
-                output_directory=str(Path(output_file).parent),
+                output_directory=str(Path(final_output_file).parent),
             )
 
             # Create FileDownload for direct file access
-            file_download = self._create_file_download(output_file)
+            file_download = self._create_file_download(final_output_file)
 
             return TranslationResultWithFile(
                 success=True,
                 message=f"Successfully translated using {args.TE}",
-                output_file=output_file,
+                output_file=final_output_file,
                 file_download=file_download,
                 metadata=metadata,
             )
@@ -124,7 +124,7 @@ class TranslationService:
             raise ValueError(str(e))
 
         finally:
-            # Clean up the temporary input file
+            # Clean up the temporary input_data file
             if temp_input_file and os.path.exists(temp_input_file):
                 try:
                     os.remove(temp_input_file)
@@ -149,7 +149,7 @@ class TranslationService:
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(input_data.text_content)
         else:
-            raise ValueError("No input source provided (text or file).")
+            raise ValueError("No input_data source provided (text or file).")
 
         return str(file_path)
 
@@ -164,12 +164,9 @@ class TranslationService:
 
         return output_file
 
-    def _create_file_download(self, file_path: str) -> FileDownload:
+    def _create_file_download(self, file_path: Path) -> FileDownload:
         """Create FileDownload object for direct file access."""
-        path = Path(file_path)
-        file_size = path.stat().st_size
-
-        # Read file content for small files (<1MB)
+        file_size = file_path.stat().st_size
         content = None
 
         if file_size < 1024 * 1024:  # 1MB limit
@@ -179,14 +176,18 @@ class TranslationService:
             except Exception as e:
                 self.logger.warning(f"Failed to read file for base64 encoding: {e}")
 
-        translated_suffix = "_translated.txt"
+        folder_id = file_path.parent.name
+        filename = file_path.name
+
+        download_url = f"/download/{folder_id}/{filename}"
+        content_type = "application/zip" if file_path.suffix == ".zip" else "text/plain"
 
         return FileDownload(
             file_id=str(uuid.uuid4()),
-            filename=path.name,
-            content_type="text/plain",
+            filename=filename,
+            content_type=content_type,
             size_bytes=file_size,
-            download_url=f"/download/{path.name[:-len(translated_suffix)]}/{path.name}",
+            download_url=download_url,
             content=content,
         )
 

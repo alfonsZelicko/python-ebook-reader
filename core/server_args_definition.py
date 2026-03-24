@@ -7,7 +7,7 @@
 # - group: For structuring the .env file.
 # - type (Optional): The Python type for the parameter (str, int, float, bool).
 # - action (Optional): For boolean flags (e.g., 'store_true').
-# - choices (Optional): A list of valid strings to restrict CLI input.
+# - choices (Optional): A list of valid strings to restrict CLI input_data.
 
 # This file is used in env_generator.py & args_manager.py to unify possible params for the server script
 

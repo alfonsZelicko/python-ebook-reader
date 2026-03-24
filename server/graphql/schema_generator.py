@@ -1,7 +1,7 @@
 """
 Schema Generator for GraphQL Server
 
-Dynamically generates GraphQL input types from existing argument definitions
+Dynamically generates GraphQL input_data types from existing argument definitions
 to maintain a single source of truth between CLI arguments and GraphQL schema.
 """
 
@@ -14,7 +14,7 @@ from strawberry.file_uploads import Upload
 
 
 class SchemaGenerator:
-    """Generates Strawberry GraphQL input types from configuration definitions."""
+    """Generates Strawberry GraphQL input_data types from configuration definitions."""
 
     def __init__(self, logger: logging.Logger):
         self.logger = logger
@@ -22,7 +22,7 @@ class SchemaGenerator:
     @staticmethod
     def generate_input_type(config_defs: List[Dict[str, Any]], type_name: str) -> Type:
         """
-        Generates a Strawberry input type from config definitions.
+        Generates a Strawberry input_data type from config definitions.
         """
         annotations = {
             "text_content": Optional[str],

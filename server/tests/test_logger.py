@@ -157,7 +157,7 @@ def test_request_logger_sanitizes_nested_data():
 
     # Nested variables
     variables = {
-        "input": {
+        "input_data": {
             "engine": "GEMINI",
             "googleCredentials": "/path/to/creds.json",
             "sourceLanguage": "en",
@@ -167,8 +167,8 @@ def test_request_logger_sanitizes_nested_data():
     sanitized = request_logger._sanitize_variables(variables)
 
     # Nested sensitive field should be redacted
-    assert sanitized["input"]["googleCredentials"] == "[REDACTED]"
-    assert sanitized["input"]["engine"] == "GEMINI"
+    assert sanitized["input_data"]["googleCredentials"] == "[REDACTED]"
+    assert sanitized["input_data"]["engine"] == "GEMINI"
 
 
 def test_request_logger_log_response_success():
@@ -200,7 +200,7 @@ def test_request_logger_log_service_start():
     request_logger = RequestLogger(logger)
 
     # Should not raise any exceptions
-    request_logger.log_service_start("TTS", "/tmp/input.txt")
+    request_logger.log_service_start("TTS", "/tmp/input_data.txt")
 
 
 def test_request_logger_log_service_complete():

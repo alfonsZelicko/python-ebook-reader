@@ -1,5 +1,5 @@
 """
-Tests for dynamically generated GraphQL input types.
+Tests for dynamically generated GraphQL input_data types.
 
 Verifies that TTSInput and TranslationInput are correctly generated
 from their respective configuration definitions.
@@ -16,7 +16,7 @@ def test_tts_input_has_required_fields():
     assert hasattr(TTSInput, "__annotations__")
     annotations = TTSInput.__annotations__
 
-    # Verify input source fields exist
+    # Verify input_data source fields exist
     assert "text_content" in annotations
     assert "file_upload" in annotations
 
@@ -43,7 +43,7 @@ def test_translation_input_has_required_fields():
     """Verify TranslationInput has text_content and file_upload fields."""
     annotations = TranslationInput.__annotations__
 
-    # Verify input source fields exist
+    # Verify input_data source fields exist
     assert "text_content" in annotations
     assert "file_upload" in annotations
 
@@ -91,13 +91,13 @@ def test_translation_input_default_values():
 
 
 def test_tts_input_strawberry_decorated():
-    """Verify TTSInput is decorated with @strawberry.input."""
+    """Verify TTSInput is decorated with @strawberry.input_data."""
     # Check for Strawberry metadata
     assert hasattr(TTSInput, "__strawberry_definition__")
 
 
 def test_translation_input_strawberry_decorated():
-    """Verify TranslationInput is decorated with @strawberry.input."""
+    """Verify TranslationInput is decorated with @strawberry.input_data."""
     # Check for Strawberry metadata
     assert hasattr(TranslationInput, "__strawberry_definition__")
 

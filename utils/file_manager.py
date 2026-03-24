@@ -4,10 +4,10 @@ from pathlib import Path
 from tkinter import filedialog
 
 
-# TODO expand it with params to switch file input type (to .pdb, etc. ...)
+# TODO expand it with params to switch file input_data type (to .pdb, etc. ...)
 def select_file() -> str:
     """
-    Opens a GUI file dialog to select the input text file (.txt).
+    Opens a GUI file dialog to select the input_data text file (.txt).
     Returns the path to the selected file or exits if selection is cancelled.
     """
     # Initialize Tkinter and hide the root window (we only need the dialog)
@@ -31,7 +31,7 @@ def select_file() -> str:
 
 def get_work_directory(input_file_path: str, base_temp_dir: str = None) -> Path:
     """
-    Returns a unified path for the output directory based on input file name.
+    Returns a unified path for the output directory based on input_data file name.
     If base_temp_dir is provided, the directory is created inside it.
     """
     input_path = Path(input_file_path)

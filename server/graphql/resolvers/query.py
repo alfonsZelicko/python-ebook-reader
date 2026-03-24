@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING
 
 import strawberry
 
+from core.translator_args_definition import TRANSLATOR_CONFIG_DEFS, TRANS_DESCRIPTIONS
+from core.tts_args_definition import TTS_CONFIG_DEFS, TTS_DESCRIPTIONS
 from server.graphql.types.outputs import (
     EngineInfo,
     EngineDetail,
@@ -23,122 +25,51 @@ if TYPE_CHECKING:
 
 # =========================== Engine Metadata =========================== #
 
-# TTS Engine metadata with descriptions and parameters
-TTS_ENGINE_METADATA = {
-    "OFFLINE": {
-        "description": "Offline TTS using pyttsx3/SAPI (no internet required)",
-        "required_parameters": ["text_content or file_upload"],
-        "optional_parameters": [
-            "offline_voice",
-            "chunk_size",
-            "chunk_by_paragraph",
-            "speaking_rate",
-            "output_type",
-            "max_file_duration",
-            "clean_output_directory",
-        ],
-    },
-    "ONLINE": {
-        "description": "Online TTS using gTTS (Google Text-to-Speech)",
-        "required_parameters": ["text_content or file_upload"],
-        "optional_parameters": [
-            "language_code",
-            "chunk_size",
-            "chunk_by_paragraph",
-            "speaking_rate",
-            "output_type",
-            "max_file_duration",
-            "clean_output_directory",
-        ],
-    },
-    "G_CLOUD": {
-        "description": "Google Cloud Text-to-Speech with WaveNet voices",
-        "required_parameters": ["text_content or file_upload", "google_credentials"],
-        "optional_parameters": [
-            "language_code",
-            "google_voice",
-            "chunk_size",
-            "chunk_by_paragraph",
-            "speaking_rate",
-            "output_type",
-            "max_file_duration",
-            "clean_output_directory",
-        ],
-    },
-    "COQUI": {
-        "description": "Coqui TTS - Offline AI-based text-to-speech",
-        "required_parameters": ["text_content or file_upload"],
-        "optional_parameters": [
-            "coqui_model",
-            "coqui_speaker",
-            "coqui_wav",
-            "coqui_sample_rate",
-            "chunk_size",
-            "chunk_by_paragraph",
-            "speaking_rate",
-            "output_type",
-            "max_file_duration",
-            "clean_output_directory",
-        ],
-    },
-}
 
-# Translation Engine metadata with descriptions and parameters
-TRANSLATION_ENGINE_METADATA = {
-    "OPENAI": {
-        "description": "OpenAI GPT models for translation (gpt-4o-mini, gpt-4o)",
-        "required_parameters": [
-            "text_content or file_upload",
-            "openai_api_key",
-            "source_language",
-            "target_language",
-        ],
-        "optional_parameters": [
-            "openai_model",
-            "translation_prompt",
-            "chunk_size",
-            "chunk_by_paragraph",
-            "max_retries",
-            "retry_delay",
-            "clean_output_directory",
-        ],
-    },
-    "GEMINI": {
-        "description": "Google Gemini models for translation",
-        "required_parameters": [
-            "text_content or file_upload",
-            "google_credentials",
-            "source_language",
-            "target_language",
-        ],
-        "optional_parameters": [
-            "gemini_model",
-            "translation_prompt",
-            "chunk_size",
-            "chunk_by_paragraph",
-            "max_retries",
-            "retry_delay",
-            "clean_output_directory",
-        ],
-    },
-    "DEEPL": {
-        "description": "DeepL API for professional translation",
-        "required_parameters": [
-            "text_content or file_upload",
-            "deepl_api_key",
-            "source_language",
-            "target_language",
-        ],
-        "optional_parameters": [
-            "chunk_size",
-            "chunk_by_paragraph",
-            "max_retries",
-            "retry_delay",
-            "clean_output_directory",
-        ],
-    },
-}
+def generate_engine_metadata(config_defs, engine_key_name, descriptions):
+    engine_selector = next(c for c in config_defs if c["long_name"] == engine_key_name)
+    engines = engine_selector.get("choices", [])
 
+    base_required = ["text_content or file_upload"]
+    result = {}
+
+    for engine in engines:
+        result[engine] = {
+            "description": descriptions.get(engine, ""),
+            "required_parameters": list(base_required),
+            "optional_parameters": [],
+        }
+
+        for conf in config_defs:
+            if conf["long_name"] == engine_key_name:
+                continue
+
+            param_name = conf["long_name"].lower()
+            supported_engines = conf.get("engines", ["ALL"])
+
+            if "ALL" in supported_engines or engine in supported_engines:
+                # Identification logic for mandatory fields
+                is_mandatory = any(
+                    x in param_name
+                    for x in ["_key", "_credentials", "_cred", "language"]
+                )
+
+                if is_mandatory:
+                    if param_name not in result[engine]["required_parameters"]:
+                        result[engine]["required_parameters"].append(param_name)
+                else:
+                    result[engine]["optional_parameters"].append(param_name)
+
+    return result
+
+
+TTS_ENGINE_METADATA = generate_engine_metadata(
+    TTS_CONFIG_DEFS, "TTS_ENGINE", TTS_DESCRIPTIONS
+)
+
+TRANSLATION_ENGINE_METADATA = generate_engine_metadata(
+    TRANSLATOR_CONFIG_DEFS, "TRANSLATION_ENGINE", TRANS_DESCRIPTIONS
+)
 
 # =========================== Query Resolvers =========================== #
 
@@ -229,6 +160,20 @@ class Query:
 
         Raises:
             Exception: If job_id does not exist
+
+        Example query:
+        ```graphql
+            query {
+              jobStatus(jobId: "example-id") {
+                jobId
+                status
+                progress {
+                  percentage
+                  stage
+                }
+              }
+            }
+        ```
         """
         context: Context = info.context
         logger = context.logger
@@ -286,6 +231,7 @@ class Query:
             file_handler = context.request.app.state.file_handler
 
             # Retrieve file from FileHandler
+            # TODO -> add this module :-)
             file_data = await file_handler.get_file_for_download(file_id)
 
             # Create FileDownload response

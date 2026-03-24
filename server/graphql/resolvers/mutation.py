@@ -12,7 +12,11 @@ from typing import Union, TYPE_CHECKING
 
 import strawberry
 
-from server.graphql.types.outputs import TTSResult, JobStatusEnum, TranslationResultWithFile
+from server.graphql.types.outputs import (
+    TTSResult,
+    JobStatusEnum,
+    TranslationResultWithFile,
+)
 
 if TYPE_CHECKING:
     from server.graphql.context import Context
@@ -197,8 +201,8 @@ class Mutation:
     async def translate_text(
         self,
         input: "TranslationInput",
+        info: strawberry.Info,
         async_mode: bool = False,
-        info: strawberry.Info = None,
     ) -> Union[TranslationResultWithFile, JobCreated]:
         """
         Translates text using specified translation engine.
@@ -285,7 +289,7 @@ class Mutation:
             f"Mutation: translate_text (async_mode={async_mode})",
             extra={
                 "async_mode": async_mode,
-                "engine": input.engine if hasattr(input, "engine") else "unknown",
+                "engine": (input.engine if hasattr(input, "engine") else "unknown"),
             },
         )
 

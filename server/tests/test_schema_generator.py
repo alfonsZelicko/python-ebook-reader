@@ -1,7 +1,7 @@
 """
 Unit tests for SchemaGenerator
 
-Tests the dynamic generation of GraphQL input types from config definitions.
+Tests the dynamic generation of GraphQL input_data types from config definitions.
 """
 
 from core.translator_args_definition import TRANSLATOR_CONFIG_DEFS
@@ -10,7 +10,7 @@ from server.graphql.schema_generator import SchemaGenerator
 
 
 def test_generate_tts_input_type():
-    """Test generation of TTS input type from TTS_CONFIG_DEFS."""
+    """Test generation of TTS input_data type from TTS_CONFIG_DEFS."""
     TTSInput = SchemaGenerator.generate_input_type(TTS_CONFIG_DEFS, "TTSInput")
 
     # Verify the type was created
@@ -29,7 +29,7 @@ def test_generate_tts_input_type():
 
 
 def test_generate_translation_input_type():
-    """Test generation of Translation input type from TRANSLATOR_CONFIG_DEFS."""
+    """Test generation of Translation input_data type from TRANSLATOR_CONFIG_DEFS."""
     TranslationInput = SchemaGenerator.generate_input_type(
         TRANSLATOR_CONFIG_DEFS, "TranslationInput"
     )
@@ -116,7 +116,7 @@ def test_generated_type_handles_boolean_flags():
 
 
 def test_all_tts_fields_mapped():
-    """Test that all TTS config fields are mapped to the input type."""
+    """Test that all TTS config fields are mapped to the input_data type."""
     TTSInput = SchemaGenerator.generate_input_type(TTS_CONFIG_DEFS, "TTSInput")
     annotations = TTSInput.__annotations__
 
@@ -146,7 +146,7 @@ def test_all_tts_fields_mapped():
 
 
 def test_all_translation_fields_mapped():
-    """Test that all translation config fields are mapped to the input type."""
+    """Test that all translation config fields are mapped to the input_data type."""
     TranslationInput = SchemaGenerator.generate_input_type(
         TRANSLATOR_CONFIG_DEFS, "TranslationInput"
     )

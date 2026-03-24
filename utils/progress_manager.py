@@ -12,7 +12,7 @@ class ProgressManager:
     """Manages reading, writing, and deleting the .progress file for state restoration."""
 
     def __init__(self, file_path: str, args: argparse.Namespace):
-        """Initializes manager paths and determines the output folder based on the input file."""
+        """Initializes manager paths and determines the output folder based on the input_data file."""
 
         # 1. Determine paths
         temp_dir = getattr(args, "TEMP_DIR", None)

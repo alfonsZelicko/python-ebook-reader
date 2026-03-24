@@ -1,32 +1,20 @@
 import argparse
 import os
-import sys
+from pathlib import Path
 from typing import List
 
 from core.translator_engines import BaseTranslationEngine
+from utils.file_manager import get_translated_file_path
 from utils.progress_manager import ProgressManager
 from utils.text_processor import chunk_text
 
 
 def start_translation(
     file_path: str, translation_engine: BaseTranslationEngine, args: argparse.Namespace
-):
+) -> Path:
     """
     Orchestrates the complete translation process.
-
-    Args:
-        file_path: Path to input text file
-        translation_engine: Initialized translation engine
-        args: Parsed arguments
-
-    Process:
-    1. Read input file
-    2. Initialize Progress Manager
-    3. Check for existing progress and resume if found
-    4. Split text into chunks
-    5. Translate each chunk with progress updates
-    6. Write translated chunks to output file
-    7. Clean up progress file on completion
+    Returns the path to the finished translation file.
     """
     print(f"\n{'='*70}")
     print(f"Starting translation: {os.path.basename(file_path)}")
@@ -34,20 +22,18 @@ def start_translation(
 
     # 1. READ INPUT FILE
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        # errors="replace" ensure that the script will not crash with the wrong character
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
             input_text = f.read()
     except FileNotFoundError:
-        print(f"\nERROR: Input file not found: {file_path}")
-        sys.exit(1)
+        raise FileNotFoundError(f"Input file not found: {file_path}")
     except Exception as e:
-        print(f"\nERROR: Failed to read input file: {file_path}")
-        print(f"Error: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to read input_Data file {file_path}: {e}")
 
     # Check if file is empty
     if not input_text or input_text.strip() == "":
         print("\nWARNING: Input file is empty. Nothing to translate.")
-        sys.exit(0)
+        return Path()
 
     print(f"Input file loaded: {len(input_text)} characters")
 
@@ -115,10 +101,8 @@ def start_translation(
     print("Translation complete! Writing output file...")
     print(f"{'='*70}\n")
 
-    output_filename = (
-        os.path.splitext(os.path.basename(file_path))[0] + "_translated.txt"
-    )
-    output_path = os.path.join(output_dir, output_filename)
+    input_stem = Path(file_path).stem
+    output_path = get_translated_file_path(Path(output_dir), input_stem)
 
     try:
         with open(output_path, "w", encoding="utf-8") as f:
@@ -130,14 +114,13 @@ def start_translation(
         print(f"  Output size: {os.path.getsize(output_path)} bytes")
 
     except Exception as e:
-        print(f"\nERROR: Failed to write output file: {output_path}")
-        print(f"Error: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to write output file {output_path}: {e}")
 
     # 7. CLEAN UP PROGRESS FILE
     progress_manager.delete_state()
     print("\n[OK] Translation completed successfully!")
-    # return output_path
+
+    return output_path
 
 
 def _create_progress_bar(current: int, total: int, width: int = 40) -> str:

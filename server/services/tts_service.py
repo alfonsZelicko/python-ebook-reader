@@ -96,7 +96,7 @@ class TTSService:
             raise ValueError(str(e))
 
         finally:
-            # Clean up the temporary input text file
+            # Clean up the temporary input_data text file
             if temp_input_file and os.path.exists(temp_input_file):
                 try:
                     os.remove(temp_input_file)
@@ -121,7 +121,7 @@ class TTSService:
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(input_data.text_content)
         else:
-            raise ValueError("No input source provided (text or file).")
+            raise ValueError("No input_data source provided (text or file).")
 
         return str(file_path)
 

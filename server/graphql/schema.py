@@ -22,7 +22,6 @@ from server.graphql.types import (
     JobStatus,
     FileDownload,
     TTSResult,
-    TranslationResult,
     TranslationResultWithFile,
 )
 from server.graphql.types import TTSInput, TranslationInput
@@ -94,9 +93,9 @@ class ErrorFormatter:
 
     @staticmethod
     def format_validation_error(
-            message: str,
-            field: Optional[str] = None,
-            details: Optional[Dict[str, Any]] = None,
+        message: str,
+        field: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Creates a formatted validation error with extensions.
@@ -133,7 +132,7 @@ class ErrorFormatter:
 
     @staticmethod
     def format_engine_not_allowed_error(
-            engine: str, allowed_engines: list, engine_type: str = "engine"
+        engine: str, allowed_engines: list, engine_type: str = "engine"
     ) -> Dict[str, Any]:
         """
         Creates a formatted error for disallowed engine usage.
@@ -201,7 +200,7 @@ class ErrorFormatter:
 
     @staticmethod
     def format_service_error(
-            message: str, service_name: Optional[str] = None
+        message: str, service_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Creates a formatted error for service processing failures.
@@ -223,7 +222,7 @@ class ErrorFormatter:
             ... )
         """
         # Create generic user-facing message
-        user_message = "An error occurred during processing. Please check your input and try again."
+        user_message = "An error occurred during processing. Please check your input_data and try again."
 
         extensions = {
             "code": ErrorCode.SERVICE_ERROR,
@@ -275,10 +274,10 @@ class ErrorLogger:
 
     @staticmethod
     def log_error(
-            logger: logging.Logger,
-            error: Exception,
-            context: Optional[Dict[str, Any]] = None,
-            operation: Optional[str] = None,
+        logger: logging.Logger,
+        error: Exception,
+        context: Optional[Dict[str, Any]] = None,
+        operation: Optional[str] = None,
     ) -> None:
         """
         Logs an error with full details including stack trace and context.
@@ -286,7 +285,7 @@ class ErrorLogger:
         Args:
             logger: Logger instance to use
             error: The exception that occurred
-            context: Additional context information (e.g., input parameters)
+            context: Additional context information (e.g., input_data parameters)
             operation: Name of the operation that failed
 
         Example:
@@ -444,10 +443,10 @@ class Mutation:
 
     @strawberry.mutation
     async def generate_speech(
-            self,
-            input: TTSInput,
-            async_mode: bool = False,
-            info: strawberry.Info = None,
+        self,
+        input: TTSInput,
+        async_mode: bool = False,
+        info: strawberry.Info = None,
     ) -> Union[TTSResult, ResolverJobCreated]:
         """
         Generates speech from text using the specified TTS engine.
@@ -465,7 +464,7 @@ class Mutation:
             ```graphql
             mutation {
               generateSpeech(
-                input: {
+                input_data: {
                   engine: "ONLINE"
                   textContent: "Hello world"
                   languageCode: "en-US"
@@ -485,10 +484,10 @@ class Mutation:
 
     @strawberry.mutation
     async def translate_text(
-            self,
-            input: TranslationInput,
-            async_mode: bool = False,
-            info: strawberry.Info = None,
+        self,
+        input: TranslationInput,
+        async_mode: bool = False,
+        info: strawberry.Info = None,
     ) -> Union[TranslationResultWithFile, ResolverJobCreated]:
         """
         Translates text from source language to target language.
@@ -506,7 +505,7 @@ class Mutation:
             ```graphql
             mutation {
               translateText(
-                input: {
+                input_data: {
                   engine: "OPENAI"
                   sourceLanguage: "en"
                   targetLanguage: "cs"
@@ -529,7 +528,8 @@ class Mutation:
             ```
         """
         resolver = ResolverMutation()
-        return await resolver.translate_text(input, async_mode, info)
+        return await resolver.translate_text(input, info, async_mode)
+
 
 # =========================== Schema Definition =========================== #
 

@@ -8,6 +8,7 @@ with optional command-line arguments for host and port configuration.
 
 import argparse
 import sys
+import traceback
 from pathlib import Path
 
 # Add project root to Python path
@@ -101,6 +102,7 @@ Examples:
         )
     except Exception as e:
         print(f"[FAIL] Failed to start server: {e}")
+        traceback.print_exc()
         sys.exit(1)
 
 
