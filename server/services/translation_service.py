@@ -99,9 +99,7 @@ class TranslationService:
             start_translation(temp_input_file, translation_engine, args)
             end_time = datetime.now()
 
-            # 7. Result Processing
             # TODO at this moment i am calculating chunks only from 1 file -> THIS IS NOT PREPARED ON MORE FILES!!! - even compress works well, after all (:o[
-            # TODO _get_output_file needs to get ALL files in the directory
             txt_output_file = self._get_output_file(temp_input_file)
             # total_chunks = self._estimate_chunks(txt_output_file)
             final_output_file = compress_output(

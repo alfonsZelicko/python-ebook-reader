@@ -43,7 +43,6 @@ def process_reading(file_path: Path, engine: BaseTTSEngine, args: argparse.Names
     for chunk in tqdm.tqdm(chunks, desc="Reading Progress"):
         if is_offline_engine:
             # OFFLINE engine handles playback internally and returns nothing
-            # TODO: find a better solution!
             engine.generate_audio_chunk(chunk)
         else:
             # ONLINE/G_CLOUD/COQUI engine generates audio data (AudioSegment)
