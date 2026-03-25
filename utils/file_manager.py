@@ -1,7 +1,10 @@
+import logging
 import sys
 import tkinter as tk
+import zipfile
 from pathlib import Path
 from tkinter import filedialog
+from typing import Optional
 
 
 # TODO expand it with params to switch file input_data type (to .pdb, etc. ...)
@@ -29,19 +32,17 @@ def select_file() -> str:
     return file_path
 
 
-def get_work_directory(input_file_path: str, base_temp_dir: str = None) -> Path:
+def get_work_directory(input_file_path: Path, base_temp_dir: str = None) -> Path:
     """
     Returns a unified path for the output directory based on input_data file name.
     If base_temp_dir is provided, the directory is created inside it.
     """
-    input_path = Path(input_file_path)
-    base_name = input_path.stem  # 'test_en'
+    base_name = input_file_path.stem  # 'test_en'
 
     if base_temp_dir:
         return Path(base_temp_dir) / base_name
 
-    # Fallback pro CLI použití (vytvoří složku vedle souboru)
-    return input_path.parent / base_name
+    return input_file_path.parent / base_name
 
 
 def get_progress_file_path(work_dir: Path, base_name: str) -> Path:
@@ -52,3 +53,45 @@ def get_progress_file_path(work_dir: Path, base_name: str) -> Path:
 def get_translated_file_path(work_dir: Path, base_name: str) -> Path:
     """Returns the path to the translated text file."""
     return work_dir / f"{base_name}_translated.txt"
+
+
+def compress_output(
+    output_file: Path,
+    rm_old: bool = True,
+    zip_always: bool = True,
+    logger: Optional[logging.Logger] = None,
+) -> Path:
+    output_dir = output_file.parent
+
+    translated_files = [
+        p for p in output_dir.iterdir() if p.is_file() and p.suffix != ".zip"
+    ]
+
+    if len(translated_files) <= 1 and not zip_always:
+        if logger:
+            logger.info(f"No compression needed: {output_file}")
+        return Path(output_file)
+
+    zip_path = output_dir / f"{output_dir.name}_translations.zip"
+
+    try:
+        with zipfile.ZipFile(
+            zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6
+        ) as zipf:
+            for file_path in translated_files:
+                if file_path != zip_path:
+                    zipf.write(file_path, file_path.name)
+
+    except Exception as e:
+        raise RuntimeError("Failed to create ZIP archive") from e
+
+    if rm_old:
+        for file_path in translated_files:
+            if file_path != zip_path:
+                try:
+                    file_path.unlink()
+                except Exception as e:
+                    if logger:
+                        logger.warning(f"Failed to remove {file_path}: {e}")
+
+    return zip_path

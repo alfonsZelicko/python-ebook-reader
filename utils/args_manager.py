@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+from pathlib import Path
 from typing import Literal
 
 import strawberry
@@ -171,7 +172,7 @@ def _validate_translator(args: argparse.Namespace):
 
 def validate_pre_execution_actions(
     args: argparse.Namespace, mode: Literal["TTS", "TRANSLATOR"]
-) -> str:
+) -> Path:
     if getattr(args, "GENERATE_ENV", False):
         generate_env_file(mode)
         print(f"\n[OK] Success: {args.ENV_FILENAME} file generated successfully.")
@@ -187,4 +188,4 @@ def validate_pre_execution_actions(
         print(f"No input file provided. Opening selection dialog...")
         file_path = select_file()
 
-    return file_path
+    return Path(file_path)

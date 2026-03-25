@@ -11,14 +11,14 @@ from utils.file_manager import get_work_directory, get_progress_file_path
 class ProgressManager:
     """Manages reading, writing, and deleting the .progress file for state restoration."""
 
-    def __init__(self, file_path: str, args: argparse.Namespace):
+    def __init__(self, file_path: Path, args: argparse.Namespace):
         """Initializes manager paths and determines the output folder based on the input_data file."""
 
         # 1. Determine paths
         temp_dir = getattr(args, "TEMP_DIR", None)
         self.output_dir = str(get_work_directory(file_path, temp_dir))
 
-        base_name = Path(file_path).stem
+        base_name = file_path.stem
         self.progress_file = str(
             get_progress_file_path(Path(self.output_dir), base_name)
         )

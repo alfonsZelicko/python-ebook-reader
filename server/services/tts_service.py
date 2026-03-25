@@ -13,7 +13,11 @@ from core.tts_args_definition import TTS_CONFIG_DEFS
 from core.tts_engines import initialize_tts_engine
 from core.tts_processor import start_processing
 from server.graphql.schema_generator import SchemaGenerator
-from server.graphql.types import TTSResult, TTSMetadata
+from server.graphql.types import TTSResult, TTSMetadata, FileDownload
+from server.services.shared_logic import (
+    create_file_download,
+    validate_server_constraints,
+)
 from utils.args_manager import resolve_args, validate_pre_execution_actions
 
 
@@ -40,10 +44,10 @@ class TTSService:
         """
         Handles TTS generation by invoking existing tts_processor logic.
         """
-        temp_input_file = None
+        temp_input_file_path = None
 
         try:
-            temp_input_file = await self._prepare_input_file(input_data)
+            temp_input_file_path = await self._prepare_input_file(input_data)
 
             from dataclasses import asdict
 
@@ -60,35 +64,41 @@ class TTSService:
 
             args = resolve_args(mode="TTS", provided_data=provided_data)
 
-            args.INPUT_FILE_PATH = temp_input_file
+            args.INPUT_FILE_PATH = temp_input_file_path
 
             # if not getattr(args, "OT", None): # its ALWAYS file :-)
             args.OT = "FILE"
 
-            self._validate_server_constraints(args.TE)
+            validate_server_constraints(self.config.allowed_tts_engines, args.TE)
             validate_pre_execution_actions(args, mode="TTS")
 
             tts_engine = initialize_tts_engine(args)
 
             # start_time = datetime.now()
             # Processor handles the splitting and audio generation
-            start_processing(temp_input_file, tts_engine, args)
+            start_processing(temp_input_file_path, tts_engine, args)
             # end_time = datetime.now()
 
-            output_files = self._collect_output_files(temp_input_file)
+            output_files = self._collect_output_files(temp_input_file_path)
             total_duration = self._calculate_total_duration(output_files)
 
             metadata = TTSMetadata(
                 engine_used=args.TE,
                 total_chunks=len(output_files),
                 total_duration_seconds=total_duration,
-                output_directory=str(self._get_output_directory(temp_input_file)),
+                output_directory=str(self._get_output_directory(temp_input_file_path)),
             )
+
+            # Create FileDownload for direct file access
+            file_downloads = []
+            for output_file in output_files:
+                file_downloads.append(self._create_file_download(output_file))
 
             return TTSResult(
                 success=True,
                 message=f"Generated {len(output_files)} audio file(s) using {args.TE}",
                 output_files=output_files,
+                fileDownload=file_downloads,
                 metadata=metadata,
             )
 
@@ -98,18 +108,13 @@ class TTSService:
 
         finally:
             # Clean up the temporary input_data text file
-            if temp_input_file and os.path.exists(temp_input_file):
+            if temp_input_file_path and os.path.exists(temp_input_file_path):
                 try:
-                    os.remove(temp_input_file)
+                    os.remove(temp_input_file_path)
                 except Exception as e:
                     self.logger.warning(f"Failed to cleanup temp file: {e}")
 
-    def _validate_server_constraints(self, engine: str) -> None:
-        """Checks if the requested engine is allowed by server configuration."""
-        if engine not in self.config.allowed_tts_engines:
-            raise ValueError(f"TTS Engine '{engine}' is not allowed by server config.")
-
-    async def _prepare_input_file(self, input_data) -> str:
+    async def _prepare_input_file(self, input_data) -> Path:
         """Saves text content or uploaded file to a temporary location."""
         file_id = str(uuid.uuid4())
         file_path = self.temp_dir / f"tts_in_{file_id}.txt"
@@ -124,21 +129,27 @@ class TTSService:
         else:
             raise ValueError("No input_data source provided (text or file).")
 
-        return str(file_path)
+        return file_path
 
-    def _collect_output_files(self, input_file: str) -> List[str]:
-        """Finds all generated audio files in the output directory."""
-        output_dir = self._get_output_directory(input_file)
-        if not output_dir.exists():
+    @staticmethod
+    def _collect_output_files(input_path: Path) -> List[str]:
+        """Finds all generated audio files in the temp directory."""
+        temp_dir = input_path.parent
+
+        # Look for MP3 files in the temp directory that match the input file pattern
+        # TTS processor creates files like: 01_tts_in_abc123.mp3
+        pattern = f"*tts_in_{input_path.stem.split('_')[-1]}*.mp3"
+
+        if not temp_dir.exists():
             return []
 
         # Sort files to ensure 001.mp3 comes before 002.mp3
-        return [str(f) for f in sorted(output_dir.glob("*.mp3"))]
+        return [str(f) for f in sorted(temp_dir.glob(pattern))]
 
-    def _get_output_directory(self, input_file: str) -> Path:
+    @staticmethod
+    def _get_output_directory(input_path: Path) -> Path:
         """Returns the path where the processor stores generated audio."""
-        input_path = Path(input_file)
-        return input_path.parent / f"{input_path.stem}_output"
+        return input_path.parent / f"{input_path.stem}"
 
     def _calculate_total_duration(self, output_files: List[str]) -> float:
         """Calculates total duration of all generated MP3 files in seconds."""
@@ -153,3 +164,6 @@ class TTSService:
         except Exception as e:
             self.logger.warning(f"Duration calculation failed: {e}")
             return 0.0
+
+    def _create_file_download(self, file_path: Path) -> FileDownload:
+        return create_file_download(file_path, self.logger)

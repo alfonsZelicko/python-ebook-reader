@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+from pathlib import Path
 
 import simpleaudio as sa
 import tqdm
@@ -12,7 +13,7 @@ from utils.text_processor import chunk_text
 
 
 def start_processing(
-    file_path: str, tts_engine: BaseTTSEngine, args: argparse.Namespace
+    file_path: Path, tts_engine: BaseTTSEngine, args: argparse.Namespace
 ):
     """
     Decides whether to run Live Reading or Audiobook Export based on arguments
@@ -28,7 +29,7 @@ def start_processing(
         process_reading(file_path, tts_engine, args)
 
 
-def process_reading(file_path: str, engine: BaseTTSEngine, args: argparse.Namespace):
+def process_reading(file_path: Path, engine: BaseTTSEngine, args: argparse.Namespace):
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             full_text = f.read()
@@ -60,7 +61,7 @@ def process_reading(file_path: str, engine: BaseTTSEngine, args: argparse.Namesp
 
 
 def export_audiobook(
-    file_path: str, tts_engine: BaseTTSEngine, args: argparse.Namespace
+    file_path: Path, tts_engine: BaseTTSEngine, args: argparse.Namespace
 ):
     """
     It exports audio as a audio file(s).

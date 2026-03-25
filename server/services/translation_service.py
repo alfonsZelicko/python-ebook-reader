@@ -5,11 +5,10 @@ This module wraps existing translation functionality and adapts it for GraphQL u
 It handles translation by invoking existing translator_processor logic.
 """
 
-import base64
 import logging
 import os
+import traceback
 import uuid
-import zipfile
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -24,8 +23,16 @@ from server.graphql.types.outputs import (
     TranslationMetadata,
     FileDownload,
 )
+from server.services.shared_logic import (
+    create_file_download,
+    validate_server_constraints,
+)
 from utils.args_manager import resolve_args, validate_pre_execution_actions
-from utils.file_manager import get_work_directory, get_translated_file_path
+from utils.file_manager import (
+    get_work_directory,
+    get_translated_file_path,
+    compress_output,
+)
 
 
 class TranslationService:
@@ -82,7 +89,7 @@ class TranslationService:
             args = resolve_args(mode="TRANSLATOR", provided_data=provided_data)
 
             args.INPUT_FILE_PATH = temp_input_file
-            self._validate_server_constraints(args.TE)
+            validate_server_constraints(self.config.allowed_translator_engines, args.TE)
 
             validate_pre_execution_actions(args, mode="TRANSLATOR")
 
@@ -94,15 +101,19 @@ class TranslationService:
             end_time = datetime.now()
 
             # 7. Result Processing
+            # TODO at this moment i am calculating chunks only from 1 file -> THIS IS NOT PREPARED ON MORE FILES!!! - even compress works well, after all (:o[
+            # TODO _get_output_file needs to get ALL files in the directory
             txt_output_file = self._get_output_file(temp_input_file)
-            total_chunks = self._estimate_chunks(txt_output_file)
-            final_output_file = self._compress_output(txt_output_file)
+            # total_chunks = self._estimate_chunks(txt_output_file)
+            final_output_file = compress_output(
+                txt_output_file, True, True, self.logger
+            )
 
             metadata = TranslationMetadata(
                 engine_used=args.TE,
                 source_language=args.SL,
                 target_language=args.TL,
-                total_chunks=total_chunks,
+                total_chunks=0,
                 output_directory=str(Path(final_output_file).parent),
             )
 
@@ -120,6 +131,7 @@ class TranslationService:
         except Exception as e:
             # Log full traceback for the server admin
             self.logger.error(f"Translation failed: {str(e)}", exc_info=True)
+            print(traceback.format_exc())
             # Re-raise as ValueError to be caught by GraphQL error handler
             raise ValueError(str(e))
 
@@ -137,7 +149,7 @@ class TranslationService:
         if engine not in self.config.allowed_translator_engines:
             raise ValueError(f"Engine '{engine}' is not allowed by server config.")
 
-    async def _prepare_input_file(self, input_data) -> str:
+    async def _prepare_input_file(self, input_data) -> Path:
         file_id = str(uuid.uuid4())
         file_path = self.temp_dir / f"trans_in_{file_id}.txt"
 
@@ -151,11 +163,10 @@ class TranslationService:
         else:
             raise ValueError("No input_data source provided (text or file).")
 
-        return str(file_path)
+        return file_path
 
-    def _get_output_file(self, input_file: str) -> Path:
-        input_path = Path(input_file)
-        work_dir = get_work_directory(input_file, str(self.temp_dir))
+    def _get_output_file(self, input_path: Path) -> Path:
+        work_dir = get_work_directory(input_path, str(self.temp_dir))
         output_file = get_translated_file_path(work_dir, input_path.stem)
 
         if not output_file.exists():
@@ -165,70 +176,13 @@ class TranslationService:
         return output_file
 
     def _create_file_download(self, file_path: Path) -> FileDownload:
-        """Create FileDownload object for direct file access."""
-        file_size = file_path.stat().st_size
-        content = None
+        return create_file_download(file_path, self.logger)
 
-        if file_size < 1024 * 1024:  # 1MB limit
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = base64.b64encode(f.read().encode("utf-8")).decode("ascii")
-            except Exception as e:
-                self.logger.warning(f"Failed to read file for base64 encoding: {e}")
-
-        folder_id = file_path.parent.name
-        filename = file_path.name
-
-        download_url = f"/download/{folder_id}/{filename}"
-        content_type = "application/zip" if file_path.suffix == ".zip" else "text/plain"
-
-        return FileDownload(
-            file_id=str(uuid.uuid4()),
-            filename=filename,
-            content_type=content_type,
-            size_bytes=file_size,
-            download_url=download_url,
-            content=content,
-        )
-
-    @staticmethod
-    def _estimate_chunks(output_file: Path) -> int:
-        try:
-            with open(output_file, "r", encoding="utf-8") as f:
-                return len([line for line in f if line.strip()])
-        except OSError:
-            return 0
-
-    def _compress_output(self, output_file: Path, rm_old=True, zip_always=True) -> Path:
-        output_dir = output_file.parent
-
-        translated_files = [
-            p for p in output_dir.iterdir() if p.is_file() and p.suffix != ".zip"
-        ]
-
-        if len(translated_files) <= 1 and not zip_always:
-            self.logger.info(f"No compression needed: {output_file}")
-            return Path(output_file)
-
-        zip_path = output_dir / f"{output_dir.name}_translations.zip"
-
-        try:
-            with zipfile.ZipFile(
-                zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6
-            ) as zipf:
-                for file_path in translated_files:
-                    if file_path != zip_path:
-                        zipf.write(file_path, file_path.name)
-
-        except Exception as e:
-            raise RuntimeError("Failed to create ZIP archive") from e
-
-        if rm_old:
-            for file_path in translated_files:
-                if file_path != zip_path:
-                    try:
-                        file_path.unlink()
-                    except Exception as e:
-                        self.logger.warning(f"Failed to remove {file_path}: {e}")
-
-        return zip_path
+    # TODO this is some shitty random AI code -> I need to collect chunks from progress_manager.py -> this is bullshit :-)
+    # @staticmethod
+    # def _estimate_chunks(output_file: Path) -> int:
+    #     try:
+    #         with open(output_file, "r", encoding="utf-8") as f:
+    #             return len([line for line in f if line.strip()])
+    #     except OSError:
+    #         return 0

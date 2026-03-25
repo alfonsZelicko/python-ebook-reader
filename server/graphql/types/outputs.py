@@ -68,6 +68,7 @@ class TTSResult:
     success: bool
     message: str
     output_files: List[str]  # Paths to generated MP3 files
+    fileDownload: Optional[List["FileDownload"]] = None  # Download info for each file
     metadata: TTSMetadata
 
 

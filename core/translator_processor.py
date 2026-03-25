@@ -10,7 +10,7 @@ from utils.text_processor import chunk_text
 
 
 def start_translation(
-    file_path: str, translation_engine: BaseTranslationEngine, args: argparse.Namespace
+    file_path: Path, translation_engine: BaseTranslationEngine, args: argparse.Namespace
 ) -> Path:
     """
     Orchestrates the complete translation process.
@@ -101,7 +101,7 @@ def start_translation(
     print("Translation complete! Writing output file...")
     print(f"{'='*70}\n")
 
-    input_stem = Path(file_path).stem
+    input_stem = file_path.stem
     output_path = get_translated_file_path(Path(output_dir), input_stem)
 
     try:
