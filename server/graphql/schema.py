@@ -25,6 +25,7 @@ from server.graphql.types import (
     TranslationResultWithFile,
 )
 from server.graphql.types import TTSInput, TranslationInput
+from server.graphql.types.outputs import TTSResultWithFile
 
 
 # =========================== Error Handling Utilities =========================== #
@@ -447,7 +448,7 @@ class Mutation:
         input: TTSInput,
         async_mode: bool = False,
         info: strawberry.Info = None,
-    ) -> Union[TTSResult, ResolverJobCreated]:
+    ) -> Union[TTSResultWithFile, ResolverJobCreated]:
         """
         Generates speech from text using the specified TTS engine.
 

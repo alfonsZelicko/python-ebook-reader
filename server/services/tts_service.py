@@ -13,12 +13,14 @@ from core.tts_args_definition import TTS_CONFIG_DEFS
 from core.tts_engines import initialize_tts_engine
 from core.tts_processor import start_processing
 from server.graphql.schema_generator import SchemaGenerator
-from server.graphql.types import TTSResult, TTSMetadata, FileDownload
+from server.graphql.types import TTSMetadata
+from server.graphql.types.outputs import TTSResultWithFile
 from server.services.shared_logic import (
-    create_file_download,
     validate_server_constraints,
+    create_file_download,
 )
 from utils.args_manager import resolve_args, validate_pre_execution_actions
+from utils.file_manager import compress_output
 
 
 class TTSService:
@@ -40,14 +42,16 @@ class TTSService:
 
     async def generate_speech(
         self, input_data, progress_callback: Optional[Callable] = None
-    ) -> TTSResult:
+    ) -> TTSResultWithFile:
         """
         Handles TTS generation by invoking existing tts_processor logic.
         """
         temp_input_file_path = None
 
         try:
+            print("BEFORE AWAIT")
             temp_input_file_path = await self._prepare_input_file(input_data)
+            print("AFTER AWAIT")
 
             from dataclasses import asdict
 
@@ -89,16 +93,21 @@ class TTSService:
                 output_directory=str(self._get_output_directory(temp_input_file_path)),
             )
 
-            # Create FileDownload for direct file access
-            file_downloads = []
-            for output_file in output_files:
-                file_downloads.append(self._create_file_download(output_file))
+            # Compress all in
+            if not output_files:
+                raise ValueError("No files found in output directory.")
 
-            return TTSResult(
+            file_download = compress_output(
+                Path(output_files[0]).parent, True, True, self.logger
+            )
+
+            file_download = create_file_download(file_download)
+
+            return TTSResultWithFile(
                 success=True,
                 message=f"Generated {len(output_files)} audio file(s) using {args.TE}",
                 output_files=output_files,
-                fileDownload=file_downloads,
+                file_download=file_download,
                 metadata=metadata,
             )
 
@@ -133,18 +142,19 @@ class TTSService:
 
     @staticmethod
     def _collect_output_files(input_path: Path) -> List[str]:
-        """Finds all generated audio files in the temp directory."""
         temp_dir = input_path.parent
-
-        # Look for MP3 files in the temp directory that match the input file pattern
-        # TTS processor creates files like: 01_tts_in_abc123.mp3
-        pattern = f"*tts_in_{input_path.stem.split('_')[-1]}*.mp3"
 
         if not temp_dir.exists():
             return []
 
-        # Sort files to ensure 001.mp3 comes before 002.mp3
-        return [str(f) for f in sorted(temp_dir.glob(pattern))]
+        uuid_part = input_path.stem.split("_")[-1]
+
+        result = []
+        for d in temp_dir.glob(f"*tts_in_{uuid_part}*"):
+            if d.is_dir():
+                result.extend(str(f) for f in sorted(d.glob("*.mp3")))
+
+        return result
 
     @staticmethod
     def _get_output_directory(input_path: Path) -> Path:
@@ -164,6 +174,3 @@ class TTSService:
         except Exception as e:
             self.logger.warning(f"Duration calculation failed: {e}")
             return 0.0
-
-    def _create_file_download(self, file_path: Path) -> FileDownload:
-        return create_file_download(file_path, self.logger)

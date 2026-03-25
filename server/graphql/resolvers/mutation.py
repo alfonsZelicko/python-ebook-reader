@@ -17,6 +17,7 @@ from server.graphql.types.outputs import (
     TTSResult,
     JobStatusEnum,
     TranslationResultWithFile,
+    TTSResultWithFile,
 )
 
 if TYPE_CHECKING:
@@ -52,7 +53,7 @@ class Mutation:
     @strawberry.mutation
     async def generate_speech(
         self, input: "TTSInput", async_mode: bool = False, info: strawberry.Info = None
-    ) -> Union[TTSResult, JobCreated]:
+    ) -> Union[TTSResultWithFile, JobCreated]:
         """
         Generates speech from text using specified TTS engine.
 
@@ -83,19 +84,30 @@ class Mutation:
             mutation {
               generateSpeech(
                 input: {
-                  textContent: "Hello world"
-                  engine: ONLINE
+                  textContent: "Hello world, this is a test."
+                  ttsEngine: ONLINE
+                  languageCode: "en-US"
                   chunkSize: 3500
                 }
                 asyncMode: false
               ) {
-                ... on TTSResult {
+                ... on TTSResultWithFile {
                   success
                   message
                   outputFiles
+                  fileDownload {
+                    fileId
+                    filename
+                    downloadUrl
+                    content
+                    sizeBytes
+                    contentType
+                  }
                   metadata {
                     engineUsed
                     totalChunks
+                    totalDurationSeconds
+                    outputDirectory
                   }
                 }
               }
@@ -108,7 +120,7 @@ class Mutation:
               generateSpeech(
                 input: {
                   textContent: "Long text..."
-                  engine: G_CLOUD
+                  ttsEngine: G_CLOUD
                 }
                 asyncMode: true
               ) {

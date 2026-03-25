@@ -90,7 +90,6 @@ class TranslationService:
 
             args.INPUT_FILE_PATH = temp_input_file
             validate_server_constraints(self.config.allowed_translator_engines, args.TE)
-
             validate_pre_execution_actions(args, mode="TRANSLATOR")
 
             translation_engine = initialize_translation_engine(args)
@@ -114,7 +113,7 @@ class TranslationService:
                 source_language=args.SL,
                 target_language=args.TL,
                 total_chunks=0,
-                output_directory=str(Path(final_output_file).parent),
+                output_directory=str(final_output_file.parent),
             )
 
             # Create FileDownload for direct file access
@@ -144,10 +143,6 @@ class TranslationService:
                     self.logger.warning(
                         f"Failed to delete temp file {temp_input_file}: {cleanup_error}"
                     )
-
-    def _validate_server_constraints(self, engine: str) -> None:
-        if engine not in self.config.allowed_translator_engines:
-            raise ValueError(f"Engine '{engine}' is not allowed by server config.")
 
     async def _prepare_input_file(self, input_data) -> Path:
         file_id = str(uuid.uuid4())

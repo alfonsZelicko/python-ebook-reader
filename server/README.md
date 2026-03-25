@@ -160,16 +160,37 @@ query {
 mutation {
   generateSpeech(
     input: {
-      textContent: "Hello world"
+      textContent: "Hello world, this is a test."
       ttsEngine: ONLINE
       languageCode: "en-US"
+      chunkSize: 3500
     }
+    asyncMode: false
   ) {
+    ... on TTSResultWithFile {
+      success
+      message
+      outputFiles
+      fileDownload {
+        fileId
+        filename
+        downloadUrl
+        content
+        sizeBytes
+        contentType
+      }
+      metadata {
+        engineUsed
+        totalChunks
+        totalDurationSeconds
+        outputDirectory
+      }
+    }
     ... on JobCreated {
       jobId
+      }
     }
   }
-}
 ```
 
 ## Translate Text
@@ -178,14 +199,24 @@ mutation {
 mutation {
   translateText(
     input: {
-      textContent: "Hello world"
-      translationEngine: OPENAI
+      textContent: "Long text..."
+      translationEngine: GEMINI
       sourceLanguage: "en"
-      targetLanguage: "cs"
+      targetLanguage: "de"
     }
+    asyncMode: true
   ) {
-    success
-    outputFile
+    ... on JobCreated {
+      jobId
+      message
+      status
+    }
+    ... on TranslationResultWithFile {
+      success
+      fileDownload {
+        downloadUrl
+      }
+    }
   }
 }
 ```
@@ -246,6 +277,8 @@ without modifying their logic.
 # Development
 
 ## Run Tests
+
+Tests need to be rewritten O:-) (at this point they are just stubs)
 
 ```bash
    poe test

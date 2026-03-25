@@ -44,7 +44,7 @@ class JobStatus:
     job_id: str
     status: JobStatusEnum
     progress: JobProgress
-    result: Optional[Union["TTSResult", "TranslationResultWithFile"]] = None
+    result: Optional[Union["TTSResultWithFile", "TranslationResultWithFile"]] = None
     error: Optional[str] = None
 
 
@@ -68,7 +68,6 @@ class TTSResult:
     success: bool
     message: str
     output_files: List[str]  # Paths to generated MP3 files
-    fileDownload: Optional[List["FileDownload"]] = None  # Download info for each file
     metadata: TTSMetadata
 
 
@@ -134,6 +133,13 @@ class FileDownload:
 
 @strawberry.type
 class TranslationResultWithFile(TranslationResult):
+    """Extended translation result with direct file download."""
+
+    file_download: Optional[FileDownload] = None
+
+
+@strawberry.type
+class TTSResultWithFile(TTSResult):
     """Extended translation result with direct file download."""
 
     file_download: Optional[FileDownload] = None

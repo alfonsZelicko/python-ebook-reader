@@ -16,12 +16,10 @@ class ProgressManager:
 
         # 1. Determine paths
         temp_dir = getattr(args, "TEMP_DIR", None)
-        self.output_dir = str(get_work_directory(file_path, temp_dir))
+        self.output_dir = get_work_directory(file_path, temp_dir)
 
         base_name = file_path.stem
-        self.progress_file = str(
-            get_progress_file_path(Path(self.output_dir), base_name)
-        )
+        self.progress_file = str(get_progress_file_path(self.output_dir, base_name))
 
         self.current_args = vars(args)
         self.state: Dict[str, Any] = {}

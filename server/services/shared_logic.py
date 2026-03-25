@@ -7,11 +7,12 @@ from server.graphql.types import FileDownload
 
 
 def create_file_download(
-    file_path: Path, logger: Logger = None, max_file_size=1024 * 1024
+    file_path: Path, logger: Logger = None, max_file_size=1024
 ) -> FileDownload:
     """Universal FileDownload creator for both TTS and Translator."""
     file_size = file_path.stat().st_size
     content = None
+    suffix = file_path.suffix.lower()
 
     if file_size < max_file_size:
         try:
@@ -20,7 +21,6 @@ def create_file_download(
         except Exception as e:
             logger.warning(f"Failed to encode file {file_path.name}: {e}")
 
-    suffix = file_path.suffix.lower()
     if suffix == ".zip":
         content_type = "application/zip"
     elif suffix in [".mp3", ".wav"]:

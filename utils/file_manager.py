@@ -56,21 +56,28 @@ def get_translated_file_path(work_dir: Path, base_name: str) -> Path:
 
 
 def compress_output(
-    output_file: Path,
+    output_dir: Path,
     rm_old: bool = True,
     zip_always: bool = True,
     logger: Optional[logging.Logger] = None,
 ) -> Path:
-    output_dir = output_file.parent
+    """
+    Compress content of given output directory into a ZIP archive and return the path.
+    :param output_dir:
+    :param rm_old:
+    :param zip_always:
+    :param logger:
+    :return: path to the ZIP archive
+    """
 
     translated_files = [
         p for p in output_dir.iterdir() if p.is_file() and p.suffix != ".zip"
     ]
 
-    if len(translated_files) <= 1 and not zip_always:
-        if logger:
-            logger.info(f"No compression needed: {output_file}")
-        return Path(output_file)
+    # if len(translated_files) <= 1 and not zip_always:
+    #     if logger:
+    #         logger.info(f"No compression needed: {output_file}")
+    #     return Path(output_file)
 
     zip_path = output_dir / f"{output_dir.name}_translations.zip"
 
