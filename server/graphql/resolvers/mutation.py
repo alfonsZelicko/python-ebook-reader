@@ -399,7 +399,6 @@ class Mutation:
             raise ValueError(error_msg)
 
         # Check if engine is specified
-        # TODO here I should ONLY check, if ENGINE is in list of available engines -> rest should be resolved elsewhere
         if not hasattr(input, "tts_engine") or not input.tts_engine:
             error_msg = "TTS engine must be specified"
             logger.warning(f"TTS validation failed: {error_msg}")

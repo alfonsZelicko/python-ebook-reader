@@ -21,7 +21,6 @@ from server.graphql.schema_generator import SchemaGenerator
 from server.graphql.types.outputs import (
     TranslationResultWithFile,
     TranslationMetadata,
-    FileDownload,
 )
 from server.services.shared_logic import (
     create_file_download,
@@ -103,7 +102,7 @@ class TranslationService:
             txt_output_file = self._get_output_file(temp_input_file)
             # total_chunks = self._estimate_chunks(txt_output_file)
             final_output_file = compress_output(
-                txt_output_file, True, True, self.logger
+                txt_output_file.parent, True, True, self.logger
             )
 
             metadata = TranslationMetadata(
@@ -115,7 +114,7 @@ class TranslationService:
             )
 
             # Create FileDownload for direct file access
-            file_download = self._create_file_download(final_output_file)
+            file_download = create_file_download(final_output_file, self.logger)
 
             return TranslationResultWithFile(
                 success=True,
@@ -167,9 +166,6 @@ class TranslationService:
             raise FileNotFoundError(f"Processor did not create output at {output_file}")
 
         return output_file
-
-    def _create_file_download(self, file_path: Path) -> FileDownload:
-        return create_file_download(file_path, self.logger)
 
     # TODO this is some shitty random AI code -> I need to collect chunks from progress_manager.py -> this is bullshit :-)
     # @staticmethod

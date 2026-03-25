@@ -90,7 +90,9 @@ class TTSService:
                 engine_used=args.TE,
                 total_chunks=len(output_files),
                 total_duration_seconds=total_duration,
-                output_directory=str(self._get_output_directory(temp_input_file_path)),
+                output_directory=str(
+                    temp_input_file_path.parent / f"{temp_input_file_path.stem}"
+                ),
             )
 
             # Compress all in
@@ -155,11 +157,6 @@ class TTSService:
                 result.extend(str(f) for f in sorted(d.glob("*.mp3")))
 
         return result
-
-    @staticmethod
-    def _get_output_directory(input_path: Path) -> Path:
-        """Returns the path where the processor stores generated audio."""
-        return input_path.parent / f"{input_path.stem}"
 
     def _calculate_total_duration(self, output_files: List[str]) -> float:
         """Calculates total duration of all generated MP3 files in seconds."""
