@@ -142,6 +142,7 @@ class TranslationService:
                     )
 
     async def _prepare_input_file(self, input_data) -> Path:
+        """Saves text content or uploaded file to a temporary location."""
         file_id = str(uuid.uuid4())
         file_path = self.temp_dir / f"trans_in_{file_id}.txt"
 
@@ -157,6 +158,7 @@ class TranslationService:
 
         return file_path
 
+    # TODO I think this is obsolete based on fact I am doing compression on all folder
     def _get_output_file(self, input_path: Path) -> Path:
         work_dir = get_work_directory(input_path, str(self.temp_dir))
         output_file = get_translated_file_path(work_dir, input_path.stem)

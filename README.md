@@ -1,5 +1,12 @@
 # TTS Reader & AI Translator
 
+> Quite a few things are still missing—mainly testing and proper implementation of some TTS and translation engines.
+> End-to-end flow is working well for translations, and TTS mostly works too (aside from ElevenLabs). The server is
+> running, but it’s still very much in a beta state.
+
+> I’d like to start focusing on the front-end next, but I don’t have much time at the moment—so if anyone feels like
+> jumping in and helping out, they’re more than welcome 🙂
+
 A modular Python toolkit for **Text‑to‑Speech generation**, **AI
 translation**, and a **GraphQL API layer** that exposes both services.
 
