@@ -305,14 +305,14 @@ How it works in flow diagram:
 flowchart TD
 
     %% Shared Translation Core
-    subgraph CORE[Translation Core]
-        CORE_Engine[Initialize Translation Engine]
-        CORE_Process[Start Translation Process]
+    subgraph CORE[Translation/TTS Core]
+        CORE_Engine[Initialize Translation/TTS Engine]
+        CORE_Process[Start Translation/TTS Process]
         CORE_Engine --> CORE_Process
     end
 
     %% GraphQL Flow
-    subgraph GraphQL[GraphQL Translation Flow]
+    subgraph GraphQL[GraphQL Translation/TTS Flow]
         GQL_Start[GraphQL Request] --> GQL_Validate[Validate Input Parameters]
         GQL_Validate --> GQL_Async{Async Mode?}
         
@@ -328,25 +328,25 @@ flowchart TD
         GQL_Prepare --> GQL_Resolve[Resolve Arguments]
         GQL_Resolve --> CORE_Engine
         
-        CORE_Process --> GQL_Result[Process Translation Result]
+        CORE_Process --> GQL_Result[Process Translation/TTS Result]
         GQL_Result --> GQL_File[Create File Download Object]
-        GQL_File --> GQL_Return[Return TranslationResultWithFile]
+        GQL_File --> GQL_Return[Return TranslationResultWithFile/TTSResultWithFile]
     end
 
     %% CLI Flow
-    subgraph CLI[CLI Translation Flow]
+    subgraph CLI[CLI Translation/TTS Flow]
         CLI_Start[CLI Command] --> CLI_Parse[Parse Arguments]
         CLI_Parse --> CLI_Validate[Validate Pre-execution Actions]
         CLI_Validate --> CORE_Engine
         
-        CORE_Process --> CLI_Complete[Complete Translation]
+        CORE_Process --> CLI_Complete[Complete Translation/TTS]
     end
     
     %% Shared Translation Process
-    subgraph Core[Core Translation Process]
+    subgraph Core[Core Translation/TTS Process]
         Core_Read[Read Input File] --> Core_Chunk[Split Text into Chunks]
         Core_Chunk --> Core_Progress[Initialize Progress Manager]
-        Core_Progress --> Core_Translate[Translate Each Chunk]
+        Core_Progress --> Core_Translate[Translate/TTS Each Chunk]
         Core_Translate --> Core_Write[Write Output File]
         Core_Write --> Core_Cleanup[Clean Up Progress File]
     end
@@ -389,7 +389,8 @@ Ensure your `.env` files contain the required credentials.
 
 ### Interrupted Processing
 
-Both tools support automatic resume. Simply run the same command again.
+Both tools support automatic resume. Simply run the same command again. It will be called with same arguments, as
+previous instance (well - this works only in CLI usage -> in GraphQL it will be a new job always)
 
 ### Voice Not Found
 
@@ -397,6 +398,7 @@ List available voices:
 
 ``` bash
 python tts_reader.py --offline-voice HELP
+...
 ```
 
 ------------------------------------------------------------------------
