@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Alert,
   Box,
@@ -37,15 +38,26 @@ type Mode = "translate" | "read";
 type JobState = "idle" | "submitting" | "polling" | "done" | "error";
 
 interface FormState {
-  mode: Mode;
   file: File | null;
   engineName: string;
   params: Record<string, unknown>;
-  jobId: string | null;
   jobState: JobState;
   errorMessage: string | null;
   ttsResult: TTSResultWithFile | null;
   translationResult: TranslationResultWithFile | null;
+}
+
+interface MainFormProps {
+  mode: Mode;
+}
+
+// Isolated so useSearchParams() lives inside its own Suspense boundary —
+// prevents hydration mismatch from wrapping the whole page in Suspense.
+function SearchParamsReader({ onJobId }: { onJobId: (id: string | null) => void }) {
+  const searchParams = useSearchParams();
+  const jobId = searchParams.get("jobId");
+  useEffect(() => { onJobId(jobId); }, [jobId, onJobId]);
+  return null;
 }
 
 function buildDefaultParams(engine: EngineDetail): Record<string, unknown> {
@@ -55,10 +67,11 @@ function buildDefaultParams(engine: EngineDetail): Record<string, unknown> {
     ...engine.optionalParameters,
   ];
   for (const p of allParams) {
-    if (p.defaultValue !== undefined) {
+    if (p.fieldType === "boolean") {
+      defaults[p.name] = p.defaultValue !== undefined ? p.defaultValue === "true" : false;
+    } else if (p.defaultValue !== undefined) {
       try {
-        if (p.fieldType === "boolean") defaults[p.name] = JSON.parse(p.defaultValue);
-        else if (p.fieldType === "number") defaults[p.name] = Number(p.defaultValue);
+        if (p.fieldType === "number") defaults[p.name] = Number(p.defaultValue);
         else defaults[p.name] = p.defaultValue;
       } catch {
         defaults[p.name] = p.defaultValue;
@@ -68,44 +81,53 @@ function buildDefaultParams(engine: EngineDetail): Record<string, unknown> {
   return defaults;
 }
 
-export function MainForm() {
+export function MainForm({ mode }: MainFormProps) {
+  const router = useRouter();
+  const [jobIdFromUrl, setJobIdFromUrl] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { ttsEngines, translationEngines, loading: enginesLoading, error: enginesError } =
     useAvailableEngines();
 
   const [state, setState] = useState<FormState>({
-    mode: "translate",
     file: null,
     engineName: "",
     params: {},
-    jobId: null,
     jobState: "idle",
     errorMessage: null,
     ttsResult: null,
     translationResult: null,
   });
 
-  // Primary language fields
   const [sourceLanguage, setSourceLanguage] = useState("en");
   const [targetLanguage, setTargetLanguage] = useState("cs");
   const [ttsLanguageCode, setTtsLanguageCode] = useState("cs-CZ");
 
+  // When jobId appears in URL (e.g. page load/refresh with ?jobId=...), start polling
+  useEffect(() => {
+    if (jobIdFromUrl && state.jobState === "idle") {
+      setState((s) => ({ ...s, jobState: "polling" }));
+    }
+  }, [jobIdFromUrl, state.jobState]);
+
+  // jobId lives in URL; derive it from there
+  const jobId = jobIdFromUrl;
+
   const { jobStatus, isPolling, timedOut } = useJobPoller(
-    state.jobState === "polling" ? state.jobId : null
+    state.jobState === "polling" ? jobId : null
   );
 
-  // When polling completes, update state
-  if (state.jobState === "polling" && !isPolling && jobStatus) {
+  // Sync polling completion back to state
+  useEffect(() => {
+    if (state.jobState !== "polling" || isPolling) return;
+    if (!jobStatus) return;
+
     if (jobStatus.status === "COMPLETED") {
       const result = jobStatus.result;
-      if (state.mode === "read" && result && "outputFiles" in result) {
+      if (mode === "read" && result && "outputFiles" in result) {
         setState((s) => ({ ...s, jobState: "done", ttsResult: result as TTSResultWithFile }));
-      } else if (state.mode === "translate" && result && "outputFile" in result) {
-        setState((s) => ({
-          ...s,
-          jobState: "done",
-          translationResult: result as TranslationResultWithFile,
-        }));
+      } else if (mode === "translate" && result && "outputFile" in result) {
+        setState((s) => ({ ...s, jobState: "done", translationResult: result as TranslationResultWithFile }));
       } else {
         setState((s) => ({ ...s, jobState: "done" }));
       }
@@ -115,65 +137,46 @@ export function MainForm() {
         jobState: "error",
         errorMessage: jobStatus.error ?? "Job failed",
       }));
+      // Remove jobId from URL on failure
+      router.replace(`/${mode}`);
     }
-  }
+  }, [state.jobState, isPolling, jobStatus, mode, router]);
 
-  if (state.jobState === "polling" && timedOut) {
-    setState((s) => ({
-      ...s,
-      jobState: "error",
-      errorMessage: "Job timed out after 10 minutes",
-    }));
-  }
+  useEffect(() => {
+    if (state.jobState === "polling" && timedOut) {
+      setState((s) => ({ ...s, jobState: "error", errorMessage: "Job timed out after 10 minutes" }));
+      router.replace(`/${mode}`);
+    }
+  }, [timedOut, state.jobState, mode, router]);
 
   const [generateSpeech] = useMutation<{ generateSpeech: TTSResultWithFile | JobCreated }>(GENERATE_SPEECH_MUTATION);
   const [translateText] = useMutation<{ translateText: TranslationResultWithFile | JobCreated }>(TRANSLATE_TEXT_MUTATION);
 
-  const activeEngines: EngineDetail[] = state.mode === "translate" ? translationEngines : ttsEngines;
+  const activeEngines: EngineDetail[] = mode === "translate" ? translationEngines : ttsEngines;
   const selectedEngine = activeEngines.find((e: EngineDetail) => e.name === state.engineName);
 
-  // Auto-select first engine when engines load or mode changes
-  if (!state.engineName && activeEngines.length > 0) {
-    const first = activeEngines[0];
-    setState((s) => ({
-      ...s,
-      engineName: first.name,
-      params: buildDefaultParams(first),
-    }));
-  }
+  // Auto-select first engine
+  useEffect(() => {
+    if (!state.engineName && activeEngines.length > 0) {
+      const first = activeEngines[0];
+      setState((s) => ({ ...s, engineName: first.name, params: buildDefaultParams(first) }));
+    }
+  }, [activeEngines, state.engineName]);
 
   const handleModeChange = (_: React.SyntheticEvent, newMode: Mode) => {
-    setState((s) => ({
-      ...s,
-      mode: newMode,
-      engineName: "",
-      params: {},
-      jobId: null,
-      jobState: "idle",
-      errorMessage: null,
-      ttsResult: null,
-      translationResult: null,
-      // file is preserved intentionally
-    }));
+    router.push(`/${newMode}`);
   };
 
   const handleEngineChange = (engineName: string) => {
     const engine = activeEngines.find((e: EngineDetail) => e.name === engineName);
-    setState((s) => ({
-      ...s,
-      engineName,
-      params: engine ? buildDefaultParams(engine) : {},
-    }));
+    setState((s) => ({ ...s, engineName, params: engine ? buildDefaultParams(engine) : {} }));
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.name.endsWith(".txt") && file.type !== "text/plain") {
-      setState((s) => ({
-        ...s,
-        errorMessage: "Only .txt files are accepted",
-      }));
+      setState((s) => ({ ...s, errorMessage: "Only .txt files are accepted" }));
       e.target.value = "";
       return;
     }
@@ -186,13 +189,12 @@ export function MainForm() {
 
   const handleSubmit = async () => {
     if (!state.file) return;
-
     setState((s) => ({ ...s, jobState: "submitting", errorMessage: null }));
 
     try {
       const fileContent = await state.file.text();
 
-      if (state.mode === "translate") {
+      if (mode === "translate") {
         const input = {
           textContent: fileContent,
           translationEngine: state.engineName,
@@ -203,17 +205,11 @@ export function MainForm() {
         const { data } = await translateText({ variables: { input, asyncMode: true } });
         const result = data?.translateText;
         if (result && "jobId" in result) {
-          setState((s) => ({
-            ...s,
-            jobId: (result as JobCreated).jobId,
-            jobState: "polling",
-          }));
+          const newJobId = (result as JobCreated).jobId;
+          setState((s) => ({ ...s, jobState: "polling" }));
+          router.replace(`/translate?jobId=${newJobId}`);
         } else if (result && "outputFile" in result) {
-          setState((s) => ({
-            ...s,
-            jobState: "done",
-            translationResult: result as TranslationResultWithFile,
-          }));
+          setState((s) => ({ ...s, jobState: "done", translationResult: result as TranslationResultWithFile }));
         }
       } else {
         const input = {
@@ -225,17 +221,11 @@ export function MainForm() {
         const { data } = await generateSpeech({ variables: { input, asyncMode: true } });
         const result = data?.generateSpeech;
         if (result && "jobId" in result) {
-          setState((s) => ({
-            ...s,
-            jobId: (result as JobCreated).jobId,
-            jobState: "polling",
-          }));
+          const newJobId = (result as JobCreated).jobId;
+          setState((s) => ({ ...s, jobState: "polling" }));
+          router.replace(`/read?jobId=${newJobId}`);
         } else if (result && "outputFiles" in result) {
-          setState((s) => ({
-            ...s,
-            jobState: "done",
-            ttsResult: result as TTSResultWithFile,
-          }));
+          setState((s) => ({ ...s, jobState: "done", ttsResult: result as TTSResultWithFile }));
         }
       }
     } catch (err: unknown) {
@@ -249,13 +239,18 @@ export function MainForm() {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
+      {/* Read jobId from URL inside its own Suspense — avoids hydration mismatch */}
+      <Suspense fallback={null}>
+        <SearchParamsReader onJobId={setJobIdFromUrl} />
+      </Suspense>
+
       <Typography variant="h4" gutterBottom>
         TTS & Translation
       </Typography>
 
       <Paper sx={{ p: 3 }}>
         {/* Mode tabs */}
-        <Tabs value={state.mode} onChange={handleModeChange} sx={{ mb: 3 }}>
+        <Tabs value={mode} onChange={handleModeChange} sx={{ mb: 3 }}>
           <Tab label="Translate" value="translate" />
           <Tab label="Read (TTS)" value="read" />
         </Tabs>
@@ -315,7 +310,7 @@ export function MainForm() {
 
         {/* Primary fields */}
         <Box sx={{ mb: 3 }}>
-          {state.mode === "translate" ? (
+          {mode === "translate" ? (
             <Box sx={{ display: "flex", gap: 2 }}>
               <TextField
                 label="Source language"
@@ -385,7 +380,7 @@ export function MainForm() {
         >
           {isSubmitting ? (
             <CircularProgress size={20} color="inherit" />
-          ) : state.mode === "translate" ? (
+          ) : mode === "translate" ? (
             "Translate"
           ) : (
             "Generate Speech"
@@ -403,7 +398,7 @@ export function MainForm() {
         {/* Results */}
         {state.jobState === "done" && (
           <ResultPanel
-            mode={state.mode}
+            mode={mode}
             ttsResult={state.ttsResult ?? undefined}
             translationResult={state.translationResult ?? undefined}
           />

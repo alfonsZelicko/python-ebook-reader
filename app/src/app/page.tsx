@@ -1,5 +1,5 @@
-import { MainForm } from "@/components/MainForm";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <MainForm />;
+  redirect("/translate");
 }

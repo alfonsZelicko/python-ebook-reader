@@ -113,8 +113,11 @@ class TranslationService:
                 output_directory=str(final_output_file.parent),
             )
 
-            # Create FileDownload for direct file access
-            file_download = create_file_download(final_output_file, self.logger)
+            file_download = create_file_download(
+                final_output_file,
+                self.logger,
+                base_url=self.config.public_url,
+            )
 
             return TranslationResultWithFile(
                 success=True,

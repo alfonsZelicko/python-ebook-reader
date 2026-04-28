@@ -12,7 +12,7 @@ interface JobStatusData {
   jobStatus: JobStatus;
 }
 
-export function useJobPoller(jobId: string | null) {
+export const useJobPoller = (jobId: string | null) => {
   const client = useApolloClient();
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
   const [isPolling, setIsPolling] = useState(false);

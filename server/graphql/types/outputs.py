@@ -99,13 +99,27 @@ class TranslationResult:
 
 
 @strawberry.type
+class ParameterDetail:
+    """Metadata for a single engine parameter, used to render dynamic form fields."""
+
+    name: str
+    label: str
+    field_type: str  # "string", "number", "boolean", "select", "file"
+    choices: Optional[List[str]] = None
+    accept: Optional[str] = None
+    default_value: Optional[str] = None
+    help_text: Optional[str] = None
+    required: bool = False
+
+
+@strawberry.type
 class EngineDetail:
     """Detailed information about an available engine and its required parameters."""
 
     name: str
     description: str
-    required_parameters: List[str]
-    optional_parameters: List[str]
+    required_parameters: List[ParameterDetail]
+    optional_parameters: List[ParameterDetail]
 
 
 @strawberry.type

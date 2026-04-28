@@ -28,6 +28,7 @@ class ServerConfig:
             self,
             host: str = "0.0.0.0",
             port: int = 8000,
+            public_url: Optional[str] = None,
             log_level: str = "INFO",
             log_file: Optional[str] = None,
             log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -45,6 +46,8 @@ class ServerConfig:
         Args:
             host: Server host address (default: 0.0.0.0)
             port: Server port number (default: 8000)
+            public_url: Public base URL for download links (e.g. http://myserver.com:8000).
+                        If not set, derived from host/port with 0.0.0.0 replaced by localhost.
             log_level: Logging level (default: INFO)
             log_file: Path to log file (default: None - console only)
             log_format: Log message format string
@@ -63,6 +66,13 @@ class ServerConfig:
         self.log_format = log_format
         self.max_upload_size_mb = max_upload_size_mb
         self.temp_directory = temp_directory
+
+        # Derive public_url: explicit config wins; otherwise use host with 0.0.0.0 → localhost
+        if public_url:
+            self.public_url = public_url.rstrip("/")
+        else:
+            public_host = "localhost" if host in ("0.0.0.0", "") else host
+            self.public_url = f"http://{public_host}:{port}"
 
         # Default engine allowlists if not provided
         self.allowed_tts_engines = allowed_tts_engines or ["OFFLINE", "ONLINE", "G_CLOUD", "COQUI"]
@@ -159,6 +169,7 @@ class ServerConfig:
         # Parse configuration from environment variables with defaults
         host = os.getenv("SERVER_HOST", "0.0.0.0")
         port = int(os.getenv("SERVER_PORT", "8000"))
+        public_url = os.getenv("SERVER_PUBLIC_URL", "").strip() or None
 
         log_level = os.getenv("LOG_LEVEL", "INFO")
         log_file = os.getenv("LOG_FILE", "").strip()
@@ -195,6 +206,7 @@ class ServerConfig:
         return cls(
             host=host,
             port=port,
+            public_url=public_url,
             log_level=log_level,
             log_file=log_file,
             log_format=log_format,
@@ -230,6 +242,13 @@ SERVER_HOST=0.0.0.0
 
 # Port number for the server
 SERVER_PORT=8000
+
+# Public base URL used for generating download links returned to clients.
+# Set this when the server is behind a proxy, runs on a remote host, or
+# when SERVER_HOST is 0.0.0.0 (bind-all). If not set, defaults to
+# http://localhost:<SERVER_PORT>.
+# Example: http://192.168.1.10:8000  or  https://api.myapp.com
+SERVER_PUBLIC_URL=
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -314,6 +333,7 @@ REQUEST_TIMEOUT_SECONDS=300
             f"ServerConfig("
             f"host={self.host}, "
             f"port={self.port}, "
+            f"public_url={self.public_url}, "
             f"log_level={self.log_level}, "
             f"allowed_tts_engines={self.allowed_tts_engines}, "
             f"allowed_translator_engines={self.allowed_translator_engines})"

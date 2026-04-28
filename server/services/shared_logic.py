@@ -7,7 +7,7 @@ from server.graphql.types import FileDownload
 
 
 def create_file_download(
-    file_path: Path, logger: Logger = None, max_file_size=1024
+    file_path: Path, logger: Logger = None, max_file_size=1024, base_url: str = ""
 ) -> FileDownload:
     """Universal FileDownload creator for both TTS and Translator."""
     file_size = file_path.stat().st_size
@@ -28,12 +28,15 @@ def create_file_download(
     else:
         content_type = "text/plain"
 
+    relative_url = f"/download/{file_path.parent.name}/{file_path.name}"
+    download_url = f"{base_url}{relative_url}" if base_url else relative_url
+
     return FileDownload(
         file_id=str(uuid.uuid4()),
         filename=file_path.name,
         content_type=content_type,
         size_bytes=file_size,
-        download_url=f"/download/{file_path.parent.name}/{file_path.name}",
+        download_url=download_url,
         content=content,
     )
 

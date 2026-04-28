@@ -2,7 +2,6 @@
 
 import {
   Alert,
-  Box,
   Button,
   Divider,
   Paper,
@@ -25,38 +24,30 @@ interface ResultPanelProps {
 
 export function ResultPanel({ mode, ttsResult, translationResult }: ResultPanelProps) {
   if (mode === "read" && ttsResult) {
+    const dl = ttsResult.fileDownload;
     return (
       <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
         <Typography variant="h6" gutterBottom>
           TTS Result
         </Typography>
 
-        {ttsResult.outputFiles.map((file, i) => (
-          <Box key={file} sx={{ mb: 2 }}>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              File {i + 1}: {file}
-            </Typography>
-            {ttsResult.fileDownload?.downloadUrl && (
-              <>
-                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                <audio
-                  controls
-                  src={ttsResult.fileDownload.downloadUrl}
-                  style={{ width: "100%", marginBottom: 8 }}
-                />
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<DownloadIcon />}
-                  href={ttsResult.fileDownload.downloadUrl}
-                  download={ttsResult.fileDownload.filename}
-                >
-                  Download
-                </Button>
-              </>
-            )}
-          </Box>
-        ))}
+        {dl?.downloadUrl && (
+          <Button
+            variant="contained"
+            startIcon={<DownloadIcon />}
+            href={dl.downloadUrl}
+            download={dl.filename}
+            sx={{ mb: 2 }}
+          >
+            Download {dl.filename}
+          </Button>
+        )}
+
+        {!dl?.downloadUrl && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Generated {ttsResult.outputFiles.length} audio file(s)
+          </Alert>
+        )}
 
         <Divider sx={{ my: 1 }} />
         <Typography variant="subtitle2" gutterBottom>

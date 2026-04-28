@@ -38,7 +38,7 @@ function renderField(
 
 function tryParseDefault(defaultValue: string, fieldType: string): unknown {
   try {
-    if (fieldType === "boolean") return JSON.parse(defaultValue);
+    if (fieldType === "boolean") return defaultValue === "true";
     if (fieldType === "number") return Number(defaultValue);
     return defaultValue;
   } catch {

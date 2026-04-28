@@ -99,11 +99,14 @@ class TTSService:
             if not output_files:
                 raise ValueError("No files found in output directory.")
 
-            file_download = compress_output(
+            zip_path = compress_output(
                 Path(output_files[0]).parent, True, True, self.logger
             )
 
-            file_download = create_file_download(file_download)
+            file_download = create_file_download(
+                zip_path,
+                base_url=self.config.public_url,
+            )
 
             return TTSResultWithFile(
                 success=True,

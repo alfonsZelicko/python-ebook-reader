@@ -16,6 +16,7 @@ from core.tts_args_definition import TTS_CONFIG_DEFS, TTS_DESCRIPTIONS
 from server.graphql.types.outputs import (
     EngineInfo,
     EngineDetail,
+    ParameterDetail,
     JobStatus,
     FileDownload,
 )
@@ -26,39 +27,93 @@ if TYPE_CHECKING:
 # =========================== Engine Metadata =========================== #
 
 
+def _infer_field_type(conf: dict) -> str:
+    """Infer the UI field type from an arg definition."""
+    if conf.get("action") == "store_true":
+        return "boolean"
+    choices = conf.get("choices")
+    if choices:
+        return "select"
+    param_type = conf.get("type")
+    if param_type == int or param_type == float:
+        return "number"
+    long_name = conf.get("long_name", "").lower()
+    if any(x in long_name for x in ["key", "credentials", "cred", "wav", "file"]):
+        return "file" if "wav" in long_name else "string"
+    return "string"
+
+
+def _to_camel_case(snake: str) -> str:
+    """Convert snake_case to camelCase."""
+    parts = snake.split("_")
+    return parts[0] + "".join(p.capitalize() for p in parts[1:])
+
+
+def _build_parameter_detail(conf: dict, required: bool) -> ParameterDetail:
+    """Build a ParameterDetail from an arg definition dict."""
+    snake_name = conf["long_name"].lower()
+    camel_name = _to_camel_case(snake_name)
+    label = conf["long_name"].replace("_", " ").title()
+    field_type = _infer_field_type(conf)
+    choices = conf.get("choices")
+    default = conf.get("default")
+    # For booleans, don't serialize default_value — frontend infers false from fieldType
+    if field_type == "boolean":
+        default_value = None
+    else:
+        default_value = str(default) if default is not None and default != "" else None
+    help_text = conf.get("help_text")
+    accept = ".wav" if "wav" in snake_name else None
+
+    return ParameterDetail(
+        name=camel_name,
+        label=label,
+        field_type=field_type,
+        choices=choices,
+        accept=accept,
+        default_value=default_value,
+        help_text=help_text,
+        required=required,
+    )
+
+
 def generate_engine_metadata(config_defs, engine_key_name, descriptions):
     engine_selector = next(c for c in config_defs if c["long_name"] == engine_key_name)
     engines = engine_selector.get("choices", [])
 
-    base_required = ["text_content or file_upload"]
     result = {}
 
     for engine in engines:
         result[engine] = {
             "description": descriptions.get(engine, ""),
-            "required_parameters": list(base_required),
+            "required_parameters": [],
             "optional_parameters": [],
         }
 
+        seen = set()
         for conf in config_defs:
             if conf["long_name"] == engine_key_name:
                 continue
 
-            param_name = conf["long_name"].lower()
+            snake_name = conf["long_name"].lower()
+            if snake_name in seen:
+                continue
+
             supported_engines = conf.get("engines", ["ALL"])
+            if "ALL" not in supported_engines and engine not in supported_engines:
+                continue
 
-            if "ALL" in supported_engines or engine in supported_engines:
-                # Identification logic for mandatory fields
-                is_mandatory = any(
-                    x in param_name
-                    for x in ["_key", "_credentials", "_cred", "language"]
-                )
+            seen.add(snake_name)
+            is_mandatory = any(
+                x in snake_name
+                for x in ["_key", "_credentials", "_cred", "language"]
+            )
 
-                if is_mandatory:
-                    if param_name not in result[engine]["required_parameters"]:
-                        result[engine]["required_parameters"].append(param_name)
-                else:
-                    result[engine]["optional_parameters"].append(param_name)
+            detail = _build_parameter_detail(conf, required=is_mandatory)
+            if is_mandatory:
+                result[engine]["required_parameters"].append(detail)
+            else:
+                result[engine]["optional_parameters"].append(detail)
 
     return result
 
