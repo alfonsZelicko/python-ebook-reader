@@ -25,6 +25,7 @@ The project consists of three main components:
 | **TTS Reader**            | Converts large text files into speech using offline and cloud engines   |
 | **AI Translator [BETA]**  | Translates large texts using AI models with chunking and resume support |
 | **GraphQL Server [BETA]** | Provides an API layer for automation and external applications          |
+| **UI APP [BETA]**         | Provides an NextJS UI APP for creating translate/read requests          |
 
 Each component can be used **independently** or combined together.
 
@@ -119,9 +120,26 @@ mutation {
 }
 ```
 
+## UI APP
+
+Based on NextJS+@mui+APOLLO Client. Currently in development.
+
+Capabilities:
+
+- dynamic form generation based on available engines
+- translation and TTS results display
+- job status tracking
+- file upload and download
+  See:
+
+**→ `app/README.md`**
+
 ------------------------------------------------------------------------
 
-# Installation
+# CORE Installation
+
+We are talking about CORE functionality: TTS/Translation scripts & CLI tools. How to install/use APP/Server is in
+`app/README.md`/`server/README.md` files.
 
 ## Requirements
 
@@ -291,6 +309,7 @@ CLI arguments always override environment settings.
     ├── tts_reader.py
     ├── ai_translator.py
     ├── core/
+    ├── app/
     ├── utils/
     ├── server/
     └── README.md
@@ -303,6 +322,14 @@ How it works in flow diagram:
 <!-- @formatter:off -->
 ```mermaid
 flowchart TD
+
+    %% UI Layer
+    subgraph UI[Next.js UI Application]
+        UI_Start[User Interaction] --> UI_Action[Select Translation / TTS Action]
+        UI_Action --> UI_Request[Send Request to Server API]
+        UI_Request --> UI_Response[Receive Response / Job Status]
+        UI_Response --> UI_Display[Display Result / Download File]
+    end
 
     %% Shared Translation Core
     subgraph CORE[Translation/TTS Core]
@@ -352,17 +379,21 @@ flowchart TD
     end
     
     %% Connections
+    UI_Request --> GQL_Start
+    GQL_Return --> UI_Response
     GQL_Process --> Core_Read
     CLI_Process --> Core_Read
     
     %% Styling
+    classDef ui fill:#e3f2fd,stroke:#0d47a1,stroke-width:2px
     classDef graphql fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef cli fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef core fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
     classDef decision fill:#fff3e0,stroke:#e65100,stroke-width:2px
     
-    class GQL_Start,GQL_Validate,GQL_Async,GQL_CreateJob,GQL_JobCreated,GQL_Background,GQL_Sync,GQL_Service,GQL_Prepare,GQL_Resolve,GQL_Engine,GQL_Process,GQL_Result,GQL_File,GQL_Return graphql
-    class CLI_Start,CLI_Parse,CLI_Validate,CLI_Engine,CLI_Process,CLI_Complete cli
+    class UI_Start,UI_Action,UI_Request,UI_Response,UI_Display ui
+    class GQL_Start,GQL_Validate,GQL_Async,GQL_CreateJob,GQL_JobCreated,GQL_Background,GQL_Sync,GQL_Prepare,GQL_Resolve,GQL_Result,GQL_File,GQL_Return graphql
+    class CLI_Start,CLI_Parse,CLI_Validate,CLI_Complete cli
     class Core_Read,Core_Chunk,Core_Progress,Core_Translate,Core_Write,Core_Cleanup core
     class GQL_Async decision
 ```
@@ -400,6 +431,21 @@ List available voices:
 python tts_reader.py --offline-voice HELP
 ...
 ```
+
+------------------------------------------------------------------------
+
+# TODO
+
+* refactor project structure
+    - decide where to move .env (imho: tts -> into tts, app -> into app [done], server -> into server...)
+    - separate tts/translator into separate folders
+* add more TTS engines
+    - eleven labs
+* add more translation engines
+    - ?? do a research on the best ones
+* add more tests
+    - atleast SOME tests for the core logic
+* **E2E scenarios**
 
 ------------------------------------------------------------------------
 
