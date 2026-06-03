@@ -1,3 +1,5 @@
+**First of all** - I need to say that tech-stack behind this client app is overkill. I just want to check how well works new version of NextJS.. And some semi-real project is a good playground.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
